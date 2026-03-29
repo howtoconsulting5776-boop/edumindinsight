@@ -86,8 +86,16 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
 
   async function handleLogout() {
     setLoggingOut(true)
-    await fetch("/api/auth/logout", { method: "POST" })
-    router.push("/login")
+    try {
+      // 브라우저 Supabase 세션 먼저 정리 (메모리 + 쿠키)
+      const { createSupabaseBrowserClient } = await import("@/lib/supabase/client")
+      const supabase = createSupabaseBrowserClient()
+      await supabase.auth.signOut()
+    } catch { /* ignore */ }
+    // 서버 세션도 정리
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {})
+    // 하드 리다이렉트: Next.js 라우터 캐시 완전 초기화
+    window.location.href = "/login"
   }
 
   const sidebarContent = (

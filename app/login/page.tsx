@@ -142,8 +142,8 @@ export default function LoginPage() {
     const res = await fetch("/api/auth/role").catch(() => null)
     const data = res ? await res.json().catch(() => ({})) : {}
     const role = data.role ?? "teacher"
-    router.push(role === "admin" || role === "director" ? "/admin" : "/")
-    router.refresh()
+    // 하드 네비게이션: Next.js 라우터 캐시를 완전히 초기화해 서버 에러 방지
+    window.location.href = role === "admin" || role === "director" ? "/admin" : "/"
   }
 
   // ── Supabase 회원가입 ───────────────────────────────────────────────────
@@ -243,8 +243,7 @@ export default function LoginPage() {
           return
         }
         const dest = (data.role ?? signupRole) === "director" ? "/admin" : "/"
-        router.push(dest)
-        router.refresh()
+        window.location.href = dest
       } catch {
         setMode("signup_done")
       }
