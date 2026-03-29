@@ -145,13 +145,31 @@ export default function LoginPage() {
     if (signupRole === "director") {
       // 1. 학원 생성
       if (!academyName.trim()) { setError("학원 이름을 입력해주세요."); return }
-      const res = await fetch("/api/academies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: academyName.trim() }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error ?? "학원 생성에 실패했습니다."); return }
+      let res: Response
+      try {
+        res = await fetch("/api/academies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: academyName.trim() }),
+        })
+      } catch {
+        setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
+        return
+      }
+      let data: { error?: string; academy?: { id: string; name: string; code: string } }
+      try { data = await res.json() } catch { data = { error: "서버 응답 오류" } }
+      if (!res.ok) {
+        if (data.error === "DB_SETUP_NEEDED" || res.status === 409) {
+          const sqlRes = await fetch("/api/setup").catch(() => null)
+          const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
+          setDbSetupSql(sqlData.sql ?? "")
+          setDbSetupNeeded(true)
+          return
+        }
+        setError(data.error ?? "학원 생성에 실패했습니다.")
+        return
+      }
+      if (!data.academy) { setError("학원 생성에 실패했습니다."); return }
       academyId = data.academy.id
       resolvedAcademyName = data.academy.name
       setCreatedAcademy(data.academy)
@@ -163,29 +181,35 @@ export default function LoginPage() {
     }
 
     // 서버 API를 통해 이메일 인증 없이 즉시 가입
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        full_name: name,
-        role: signupRole,
-        academy_id: academyId,
-        academy_name: resolvedAcademyName,
-      }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      if (data.error === "DB_SETUP_NEEDED" || res.status === 409) {
-        // DB 설정 필요 — SQL 가져오기
-        const sqlRes = await fetch("/api/setup")
-        const sqlData = await sqlRes.json()
+    let signupRes: Response
+    try {
+      signupRes = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: name,
+          role: signupRole,
+          academy_id: academyId,
+          academy_name: resolvedAcademyName,
+        }),
+      })
+    } catch {
+      setError("서버에 연결할 수 없습니다. Vercel 배포 로그를 확인해주세요.")
+      return
+    }
+    let data: Record<string, unknown>
+    try { data = await signupRes.json() } catch { data = { error: "서버 응답을 읽을 수 없습니다." } }
+    if (!signupRes.ok) {
+      if (data.error === "DB_SETUP_NEEDED" || signupRes.status === 409) {
+        const sqlRes = await fetch("/api/setup").catch(() => null)
+        const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
         setDbSetupSql(sqlData.sql ?? "")
         setDbSetupNeeded(true)
         return
       }
-      setError(data.error ?? "회원가입에 실패했습니다.")
+      setError((data.error as string) ?? "회원가입에 실패했습니다.")
       return
     }
 

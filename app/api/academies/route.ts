@@ -87,11 +87,15 @@ export async function POST(req: NextRequest) {
 
     if (error || !data) {
       console.error("[POST /api/academies] insert error:", error)
-      // 테이블이 없는 경우
-      if (error?.message?.includes("does not exist") || error?.code === "42P01") {
-        return NextResponse.json({
-          error: "academies 테이블이 없습니다. Supabase SQL Editor에서 supabase-schema-v2.sql을 실행해주세요.",
-        }, { status: 500 })
+      const isTableMissing =
+        error?.code === "42P01" ||
+        error?.code === "PGRST204" ||
+        error?.message?.includes("does not exist") ||
+        error?.message?.includes("didn't find it") ||
+        error?.message?.includes("not found") ||
+        error?.message?.includes("relation")
+      if (isTableMissing) {
+        return NextResponse.json({ error: "DB_SETUP_NEEDED" }, { status: 409 })
       }
       return NextResponse.json({ error: error?.message ?? "학원 생성에 실패했습니다." }, { status: 500 })
     }
