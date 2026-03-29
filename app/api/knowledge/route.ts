@@ -1,28 +1,31 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   isSupabaseConfigured,
-  isAdminUser,
   createSupabaseAdminClient,
+  getUserProfile,
 } from "@/lib/supabase/server"
 import { getSession } from "@/lib/auth"
 import { readKnowledge, addKnowledgeItem } from "@/lib/store"
 import type { KnowledgeItem } from "@/lib/store"
 
-// ── Unified admin auth check ────────────────────────────────────────────────
-async function requireAdmin(): Promise<NextResponse | null> {
+// ── Auth: admin or director only ─────────────────────────────────────────
+async function requireDirectorOrAdmin() {
   if (isSupabaseConfigured()) {
-    const ok = await isAdminUser()
-    if (!ok)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    return null
+    const profile = await getUserProfile()
+    if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
+      return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), profile: null }
+    }
+    return { error: null, profile }
   }
+  // Legacy cookie fallback
   const session = await getSession()
-  if (!session || session.role !== "admin")
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  return null
+  if (!session || session.role !== "admin") {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), profile: null }
+  }
+  return { error: null, profile: null }
 }
 
-// ── Normalize Supabase row → KnowledgeItem ─────────────────────────────────
+// ── Normalize Supabase row → KnowledgeItem ──────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalize(row: any): KnowledgeItem {
   return {
@@ -40,16 +43,27 @@ function normalize(row: any): KnowledgeItem {
 }
 
 export async function GET() {
-  const authError = await requireAdmin()
+  const { error: authError, profile } = await requireDirectorOrAdmin()
   if (authError) return authError
 
   if (isSupabaseConfigured()) {
     const db = createSupabaseAdminClient()
-    const { data, error } = await db
+
+    let query = db
       .from("knowledge_base")
       .select("*")
       .order("created_at", { ascending: false })
 
+    // Super-admin sees everything; director sees their academy + global items
+    if (profile?.role === "director" && profile.academyId) {
+      query = db
+        .from("knowledge_base")
+        .select("*")
+        .or(`academy_id.eq.${profile.academyId},academy_id.is.null`)
+        .order("created_at", { ascending: false })
+    }
+
+    const { data, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ items: (data ?? []).map(normalize) })
   }
@@ -58,7 +72,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const authError = await requireAdmin()
+  const { error: authError, profile } = await requireDirectorOrAdmin()
   if (authError) return authError
 
   const body = await req.json()
@@ -88,6 +102,8 @@ export async function POST(req: NextRequest) {
         situation: situation ?? null,
         response: response ?? null,
         outcome: outcome ?? null,
+        // Associate with director's academy (null = global, admin only)
+        academy_id: profile?.academyId ?? null,
       })
       .select()
       .single()
@@ -96,15 +112,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ item: normalize(data) }, { status: 201 })
   }
 
-  const newItem = addKnowledgeItem({
-    category,
-    title,
-    content,
-    priority,
-    tags: parsedTags,
-    situation,
-    response,
-    outcome,
-  })
+  const newItem = addKnowledgeItem({ category, title, content, priority, tags: parsedTags, situation, response, outcome })
   return NextResponse.json({ item: newItem }, { status: 201 })
+}
+
+export async function DELETE(req: NextRequest) {
+  const { error: authError, profile } = await requireDirectorOrAdmin()
+  if (authError) return authError
+
+  const { id } = await req.json()
+  if (!id) return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 })
+
+  if (isSupabaseConfigured()) {
+    const db = createSupabaseAdminClient()
+
+    // Directors can only delete their own academy's items
+    let deleteQuery = db.from("knowledge_base").delete().eq("id", id)
+    if (profile?.role === "director" && profile.academyId) {
+      deleteQuery = db.from("knowledge_base").delete().eq("id", id).eq("academy_id", profile.academyId)
+    }
+
+    const { error } = await deleteQuery
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  return NextResponse.json({ success: true })
 }

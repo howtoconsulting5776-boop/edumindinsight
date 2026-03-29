@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { google } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { buildRagContext } from "@/lib/store"
-import { isSupabaseConfigured, createSupabaseAdminClient } from "@/lib/supabase/server"
+import {
+  isSupabaseConfigured,
+  createSupabaseAdminClient,
+  createSupabaseServerClient,
+} from "@/lib/supabase/server"
 import type { KnowledgeItem, PersonaSettings } from "@/lib/store"
 
 export type AnalysisMode = "general" | "deep"
@@ -224,23 +228,42 @@ McKinsey 수준의 구조적 분석과 임상심리 기반 해석을 결합하�
 }
 
 // ── Supabase RAG: fetch knowledge items ordered by priority ─────────────────
-async function fetchSupabaseKnowledge(inputText: string): Promise<string> {
+async function fetchSupabaseKnowledge(inputText: string, academyId: string | null): Promise<string> {
   try {
     const db = createSupabaseAdminClient()
 
-    // Fetch persona settings
-    const { data: personaRow } = await db
-      .from("persona_settings")
-      .select("*")
-      .eq("id", 1)
-      .single()
+    // Fetch persona settings — scoped by academy if available
+    let personaQuery = db.from("persona_settings").select("*")
+    if (academyId) {
+      // prefer academy-specific persona; fall back to global (id=1)
+      personaQuery = db
+        .from("persona_settings")
+        .select("*")
+        .or(`academy_id.eq.${academyId},id.eq.1`)
+        .order("academy_id", { ascending: false }) // academy-specific first (non-null > null)
+        .limit(1)
+    } else {
+      personaQuery = personaQuery.eq("id", 1)
+    }
+    const { data: personaRow } = await personaQuery.single().catch(() => ({ data: null }))
 
-    // Fetch all knowledge items, high-priority first
-    const { data: rows, error } = await db
+    // Fetch knowledge items: academy-specific OR global (academy_id IS NULL)
+    let knowledgeQuery = db
       .from("knowledge_base")
       .select("*")
-      .order("priority", { ascending: false }) // high → medium → low (lexicographic desc)
+      .order("priority", { ascending: false })
       .limit(20)
+
+    if (academyId) {
+      knowledgeQuery = db
+        .from("knowledge_base")
+        .select("*")
+        .or(`academy_id.eq.${academyId},academy_id.is.null`)
+        .order("priority", { ascending: false })
+        .limit(20)
+    }
+
+    const { data: rows, error } = await knowledgeQuery
 
     if (error) throw error
 
@@ -340,7 +363,8 @@ async function saveCounselingLog(
   rawText: string,
   sanitizedText: string,
   mode: AnalysisMode,
-  result: AnalysisResult
+  result: AnalysisResult,
+  academyId: string | null = null
 ): Promise<void> {
   try {
     const db = createSupabaseAdminClient()
@@ -353,6 +377,7 @@ async function saveCounselingLog(
       negative_score: result.negativeScore,
       keywords:       result.keywords ?? [],
       result:         result,
+      academy_id:     academyId,
     })
   } catch (err) {
     // Non-critical — don't fail the response if logging fails
@@ -388,13 +413,25 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt(mode)
 
-    // Step 3 — Retrieve RAG context
-    // Prefer Supabase knowledge base; fall back to file-based store
+    // Step 3 — Resolve the caller's academy for RAG isolation
+    // Read academy_id from the session JWT (no DB round-trip).
+    let academyId: string | null = null
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = await createSupabaseServerClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        academyId = session?.user?.user_metadata?.academy_id ?? null
+      } catch {
+        // If session lookup fails, proceed without academy scoping
+      }
+    }
+
+    // Step 4 — Retrieve RAG context (academy-scoped)
     const ragContext = isSupabaseConfigured()
-      ? await fetchSupabaseKnowledge(sanitizedText)
+      ? await fetchSupabaseKnowledge(sanitizedText, academyId)
       : buildRagContext(sanitizedText)
 
-    // Step 4 — Build the full prompt
+    // Step 5 — Build the full prompt
     const fullPrompt = ragContext
       ? `${ragContext}\n\n${systemPrompt}\n\n---\n\n다음 학부모 상담 내용을 분석해주세요:\n\n"${sanitizedText}"`
       : `${systemPrompt}\n\n---\n\n다음 학부모 상담 내용을 분석해주세요:\n\n"${sanitizedText}"`
@@ -423,9 +460,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Step 5 — Persist analysis log to Supabase (non-blocking)
+    // Step 6 — Persist analysis log to Supabase (non-blocking)
     if (isSupabaseConfigured()) {
-      saveCounselingLog(rawText, sanitizedText, mode, result)
+      saveCounselingLog(rawText, sanitizedText, mode, result, academyId)
     }
 
     return NextResponse.json({ result, sanitizedText, model: modelId })

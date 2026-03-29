@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server"
-import { getSupabaseUser } from "@/lib/supabase/server"
+import { getUserProfile } from "@/lib/supabase/server"
 
-// Returns the admin/user role of the currently authenticated Supabase user.
+// Returns the full profile of the currently authenticated Supabase user.
 export async function GET() {
-  const user = await getSupabaseUser()
-  if (!user) {
-    return NextResponse.json({ isAdmin: false, user: null }, { status: 401 })
+  const profile = await getUserProfile()
+  if (!profile) {
+    return NextResponse.json({ isAdmin: false, role: null, user: null }, { status: 401 })
   }
-  const adminEmail = process.env.ADMIN_EMAIL ?? ""
-  const isAdmin = user.email === adminEmail
-  return NextResponse.json({ isAdmin, email: user.email })
+  return NextResponse.json({
+    isAdmin: profile.role === "admin",
+    role: profile.role,
+    email: profile.email,
+    academyId: profile.academyId,
+    academyName: profile.academyName,
+    academyCode: profile.academyCode,
+    fullName: profile.fullName,
+  })
 }

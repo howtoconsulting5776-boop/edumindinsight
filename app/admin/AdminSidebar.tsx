@@ -14,7 +14,11 @@ import {
   Menu01Icon,
   ArrowLeft01Icon,
   Home01Icon,
+  Group01Icon,
+  School01Icon,
+  Crown02Icon,
 } from "@hugeicons/core-free-icons"
+import type { UserRole } from "@/lib/supabase/server"
 
 function HIcon({
   icon,
@@ -38,18 +42,46 @@ function HIcon({
   )
 }
 
-const navItems = [
-  { href: "/admin", label: "지식 대시보드", icon: DashboardCircleIcon },
-  { href: "/admin/manuals", label: "상담 매뉴얼 관리", icon: BookOpen01Icon },
-  { href: "/admin/cases", label: "모범 사례 학습", icon: CheckmarkBadge01Icon },
-  { href: "/admin/persona", label: "AI 페르소나 설정", icon: AiBrain01Icon },
-]
+// ── Role-aware nav items ────────────────────────────────────────────────────
+function getNavItems(role: UserRole) {
+  const common = [
+    { href: "/admin",           label: "지식 대시보드",   icon: DashboardCircleIcon },
+    { href: "/admin/manuals",   label: "상담 매뉴얼 관리", icon: BookOpen01Icon },
+    { href: "/admin/cases",     label: "모범 사례 학습",   icon: CheckmarkBadge01Icon },
+    { href: "/admin/persona",   label: "AI 페르소나 설정", icon: AiBrain01Icon },
+    { href: "/admin/manage",    label: "선생님 관리",      icon: Group01Icon },
+  ]
 
-export default function AdminSidebar() {
+  if (role === "admin") {
+    return [
+      ...common,
+      { href: "/admin/academies", label: "학원 전체 모니터링", icon: AiBrain01Icon },
+    ]
+  }
+
+  return common
+}
+
+const roleLabel: Record<UserRole, { label: string; color: string }> = {
+  admin:    { label: "슈퍼 어드민", color: "#F59E0B" },
+  director: { label: "학원장",      color: "#10B981" },
+  teacher:  { label: "선생님",      color: "#60A5FA" },
+}
+
+interface Props {
+  role: UserRole
+  academyName: string | null
+  fullName: string | null
+}
+
+export default function AdminSidebar({ role, academyName, fullName }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+
+  const navItems = getNavItems(role)
+  const rl = roleLabel[role]
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -59,23 +91,45 @@ export default function AdminSidebar() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Logo */}
+      {/* Logo + 역할 뱃지 */}
       <div className="px-6 py-7 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
-            <HIcon icon={AiBrain01Icon} size={18} primary="white" secondary="rgba(255,255,255,0.5)" />
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0">
+            <img src="/logo.png" alt="에듀마인 인사이트 로고" className="w-full h-full object-cover" />
           </div>
           <div>
-            <p className="text-white/60 text-[10px] font-medium tracking-wider uppercase">Admin</p>
+            <p className="text-white/60 text-[10px] font-medium tracking-wider uppercase">
+              {role === "admin" ? "Super Admin" : "Admin"}
+            </p>
             <p className="text-white text-sm font-bold leading-none">에듀마인 인사이트</p>
           </div>
+        </div>
+
+        {/* 역할 + 학원 정보 */}
+        <div className="mt-3 px-3 py-2 rounded-xl bg-white/10 border border-white/15">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <HIcon
+              icon={role === "admin" ? Crown02Icon : role === "director" ? School01Icon : Group01Icon}
+              size={12}
+              primary={rl.color}
+              secondary={rl.color + "80"}
+            />
+            <span className="text-xs font-bold" style={{ color: rl.color }}>{rl.label}</span>
+          </div>
+          {(academyName || fullName) && (
+            <p className="text-white/50 text-xs truncate">
+              {academyName ?? fullName ?? ""}
+            </p>
+          )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-4 py-6 space-y-1">
+      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href)
+          const isActive = item.href === "/admin"
+            ? pathname === "/admin"
+            : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}
@@ -139,6 +193,9 @@ export default function AdminSidebar() {
         <div className="flex items-center gap-2">
           <HIcon icon={AiBrain01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           <span className="text-white font-bold text-sm">에듀마인 Admin</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold ml-1" style={{ background: rl.color + "30", color: rl.color }}>
+            {rl.label}
+          </span>
         </div>
         <button
           onClick={() => setOpen(!open)}
@@ -156,10 +213,7 @@ export default function AdminSidebar() {
       {/* Mobile drawer */}
       {open && (
         <>
-          <div
-            className="md:hidden fixed inset-0 z-40 bg-black/40"
-            onClick={() => setOpen(false)}
-          />
+          <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setOpen(false)} />
           <aside
             className="md:hidden fixed top-0 left-0 bottom-0 w-72 z-50 flex flex-col"
             style={{ background: "linear-gradient(180deg, #2A1F7A 0%, #3E2D9B 100%)" }}

@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://edumindinsight-lwsi.vercel.app"),
   title: {
     default: "에듀마인 인사이트 | AI 기반 학원 상담 감정 분석 솔루션",
     template: "%s | 에듀마인 인사이트",
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     siteName: "EduMind Insight",
     images: [
       {
-        url: "/og-image.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
         alt: "에듀마인 인사이트 서비스 화면",
@@ -51,15 +52,16 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "에듀마인 인사이트 | 학원 전용 AI 상담 분석기",
     description: "AI가 분석하는 학부모의 진심, 이제 상담의 주도권을 잡으세요.",
-    images: ["/og-image.png"],
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
     follow: true,
   },
   icons: {
-    icon: "/icon.png",
+    icon: "/logo.png",
     apple: "/apple-touch-icon.png",
+    shortcut: "/logo.png",
   },
 };
 

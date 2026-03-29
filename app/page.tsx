@@ -335,11 +335,6 @@ export default function Home() {
           <div className="mb-8">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white"
-                  style={{ backgroundColor: "#3E2D9B" }}>
-                  <HIcon icon={MagicWand01Icon} size={13} primary="white" secondary="rgba(255,255,255,0.5)" />
-                  하우투영어수학전문학원
-                </div>
                 <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-[1.75rem] md:leading-snug">
                   에듀마인 인사이트<br /><span className="text-[#3E2D9B]">EduMind Insight</span>
                 </h1>

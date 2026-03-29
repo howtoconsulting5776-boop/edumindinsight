@@ -2,6 +2,19 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 
+// ── UserProfile type shared across the app ────────────────────────────────
+export type UserRole = "admin" | "director" | "teacher"
+
+export interface UserProfile {
+  id: string
+  email: string
+  role: UserRole
+  academyId: string | null
+  academyName: string | null
+  academyCode: string | null
+  fullName: string | null
+}
+
 // ── Supabase client for server components / route handlers ─────────────────
 // Uses the anon key + the user's session cookie (respects RLS).
 export async function createSupabaseServerClient() {
@@ -57,17 +70,90 @@ export function isSupabaseConfigured(): boolean {
 // ── Helper: get authenticated user from server context ────────────────────
 export async function getSupabaseUser() {
   if (!isSupabaseConfigured()) return null
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
+  try {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error) {
+      console.error("[getSupabaseUser] auth error:", error.message)
+      return null
+    }
+    return user
+  } catch (err) {
+    console.error("[getSupabaseUser] unexpected error:", err)
+    return null
+  }
 }
 
-// ── Helper: is the current user an admin? ─────────────────────────────────
+// ── Helper: is the current user a super-admin? ───────────────────────────
 export async function isAdminUser(): Promise<boolean> {
   const user = await getSupabaseUser()
   if (!user) return false
   const adminEmail = process.env.ADMIN_EMAIL ?? ""
   return user.email === adminEmail
+}
+
+// ── Helper: get full user profile (DB + fallback to user_metadata) ────────
+export async function getUserProfile(): Promise<UserProfile | null> {
+  const user = await getSupabaseUser()
+  if (!user) return null
+
+  const adminEmail = process.env.ADMIN_EMAIL ?? ""
+
+  // Super-admin shortcut — no DB query needed
+  if (user.email === adminEmail) {
+    return {
+      id: user.id,
+      email: user.email!,
+      role: "admin",
+      academyId: null,
+      academyName: null,
+      academyCode: null,
+      fullName: user.user_metadata?.full_name ?? null,
+    }
+  }
+
+  // Try profiles table (authoritative source)
+  try {
+    const db = createSupabaseAdminClient()
+    const { data } = await db
+      .from("profiles")
+      .select("*, academies(id, name, code)")
+      .eq("id", user.id)
+      .single()
+
+    if (data) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const academy = (data as any).academies
+      return {
+        id: user.id,
+        email: user.email!,
+        role: data.role as UserRole,
+        academyId: data.academy_id ?? null,
+        academyName: academy?.name ?? null,
+        academyCode: academy?.code ?? null,
+        fullName: data.full_name ?? null,
+      }
+    }
+  } catch {
+    // Table might not exist yet — fall through to metadata
+  }
+
+  // Fallback: JWT user_metadata (set during signUp)
+  const meta = user.user_metadata ?? {}
+  return {
+    id: user.id,
+    email: user.email!,
+    role: (meta.role as UserRole) ?? "teacher",
+    academyId: meta.academy_id ?? null,
+    academyName: meta.academy_name ?? null,
+    academyCode: null,
+    fullName: meta.full_name ?? null,
+  }
+}
+
+// ── Helper: director-or-admin check ──────────────────────────────────────
+export async function isDirectorOrAdmin(): Promise<boolean> {
+  const profile = await getUserProfile()
+  if (!profile) return false
+  return profile.role === "admin" || profile.role === "director"
 }

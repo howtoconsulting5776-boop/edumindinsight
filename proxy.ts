@@ -62,27 +62,34 @@ async function supabaseProxy(request: NextRequest, pathname: string) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  const userEmail = session?.user?.email ?? null
-  const adminEmail = process.env.ADMIN_EMAIL ?? ""
-  const isLoggedIn = !!session
-  const isAdmin = isLoggedIn && userEmail === adminEmail
+  const userEmail    = session?.user?.email ?? null
+  const adminEmail   = process.env.ADMIN_EMAIL ?? ""
+  const isLoggedIn   = !!session
+
+  // Role is embedded in user_metadata at signup — no DB round-trip needed.
+  // Super-admin (ADMIN_EMAIL) always gets 'admin' regardless of metadata.
+  const metaRole     = (session?.user?.user_metadata?.role as string) ?? "teacher"
+  const isSuperAdmin = isLoggedIn && userEmail === adminEmail
+  const isDirector   = isLoggedIn && metaRole === "director"
+  const canAccessAdmin = isSuperAdmin || isDirector
 
   // Redirect already-authenticated users away from /login
   if (pathname === "/login") {
     if (isLoggedIn) {
       return NextResponse.redirect(
-        new URL(isAdmin ? "/admin" : "/", request.url)
+        new URL(canAccessAdmin ? "/admin" : "/", request.url)
       )
     }
     return response
   }
 
-  // Protect /admin — must be authenticated AND admin email
+  // Protect /admin — admin or director only
   if (pathname.startsWith("/admin")) {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/login", request.url))
     }
-    if (!isAdmin) {
+    if (!canAccessAdmin) {
+      // Teachers are redirected to the analysis page
       return NextResponse.redirect(new URL("/", request.url))
     }
     return response
