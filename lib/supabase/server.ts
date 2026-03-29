@@ -79,19 +79,35 @@ export function isSupabaseConfigured(): boolean {
 }
 
 // ── Helper: get authenticated user from server context ────────────────────
+// Tries getUser() (network-validated) first; falls back to getSession()
+// (cookie-only JWT parse) so the app keeps working when Supabase is
+// temporarily unreachable (e.g. project paused or network issue).
 export async function getSupabaseUser() {
   if (!isSupabaseConfigured()) return null
   try {
     const supabase = await createSupabaseServerClient()
+
+    // Primary: server-validated token
     const { data: { user }, error } = await supabase.auth.getUser()
-    if (error) {
-      console.error("[getSupabaseUser] auth error:", error.message)
-      return null
-    }
-    return user
+    if (!error && user) return user
+
+    if (error) console.warn("[getSupabaseUser] getUser error:", error.message)
+
+    // Fallback: parse JWT from cookie without network call
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) return session.user
+
+    return null
   } catch (err) {
     console.error("[getSupabaseUser] unexpected error:", err)
-    return null
+    // Last resort: try session from cookie
+    try {
+      const supabase = await createSupabaseServerClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      return session?.user ?? null
+    } catch {
+      return null
+    }
   }
 }
 
