@@ -88,12 +88,15 @@ export async function POST(req: NextRequest) {
 
         // director인 경우 academy.owner_id 업데이트
         if (role === "director" && academy_id) {
-          await admin
-            .from("academies")
-            .update({ owner_id: userId, updated_at: new Date().toISOString() })
-            .eq("id", academy_id)
-            .is("owner_id", null)
-            .catch((e) => console.warn("[signup] academy owner update failed:", e))
+          try {
+            await admin
+              .from("academies")
+              .update({ owner_id: userId, updated_at: new Date().toISOString() })
+              .eq("id", academy_id)
+              .is("owner_id", null)
+          } catch (e) {
+            console.warn("[signup] academy owner update failed:", e)
+          }
         }
       }
 
