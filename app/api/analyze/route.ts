@@ -245,7 +245,12 @@ async function fetchSupabaseKnowledge(inputText: string, academyId: string | nul
     } else {
       personaQuery = personaQuery.eq("id", 1)
     }
-    const { data: personaRow } = await personaQuery.single().catch(() => ({ data: null }))
+    // eslint-disable-next-line prefer-const
+    let personaRow: Record<string, unknown> | null = null
+    try {
+      const { data } = await personaQuery.single()
+      personaRow = data as Record<string, unknown> | null
+    } catch { /* no persona row found — use defaults */ }
 
     // Fetch knowledge items: academy-specific OR global (academy_id IS NULL)
     let knowledgeQuery = db
@@ -299,12 +304,14 @@ async function fetchSupabaseKnowledge(inputText: string, academyId: string | nul
     scored.sort((a, b) => b.score - a.score)
     const topItems = scored.slice(0, 8).map((s) => s.item)
 
-    const persona: PersonaSettings = personaRow
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pr = personaRow as any
+    const persona: PersonaSettings = pr
       ? {
-          tone: personaRow.tone,
-          empathyLevel: personaRow.empathy_level,
-          formality: personaRow.formality,
-          customInstructions: personaRow.custom_instructions ?? "",
+          tone: pr.tone as PersonaSettings["tone"],
+          empathyLevel: pr.empathy_level as number,
+          formality: pr.formality as number,
+          customInstructions: (pr.custom_instructions as string) ?? "",
         }
       : { tone: "empathetic", empathyLevel: 70, formality: 65, customInstructions: "" }
 
