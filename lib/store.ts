@@ -54,15 +54,19 @@ const KNOWLEDGE_PATH = path.join(DATA_DIR, "knowledge.json")
 const PERSONA_PATH = path.join(DATA_DIR, "persona.json")
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+  } catch {
+    // Vercel 등 read-only 파일시스템에서는 무시
+  }
 }
 
 // ── Knowledge Base ──────────────────────────────────────────────────────────
 
 export function readKnowledge(): KnowledgeItem[] {
-  ensureDataDir()
-  if (!fs.existsSync(KNOWLEDGE_PATH)) return []
   try {
+    ensureDataDir()
+    if (!fs.existsSync(KNOWLEDGE_PATH)) return []
     const raw = fs.readFileSync(KNOWLEDGE_PATH, "utf-8")
     return (JSON.parse(raw) as { items: KnowledgeItem[] }).items ?? []
   } catch {
@@ -97,14 +101,13 @@ export function deleteKnowledgeItem(id: string): boolean {
 // ── Persona ─────────────────────────────────────────────────────────────────
 
 export function readPersona(): PersonaSettings {
-  ensureDataDir()
-  if (!fs.existsSync(PERSONA_PATH)) {
-    return { tone: "empathetic", empathyLevel: 70, formality: 65, customInstructions: "" }
-  }
+  const defaults: PersonaSettings = { tone: "empathetic", empathyLevel: 70, formality: 65, customInstructions: "" }
   try {
+    ensureDataDir()
+    if (!fs.existsSync(PERSONA_PATH)) return defaults
     return JSON.parse(fs.readFileSync(PERSONA_PATH, "utf-8")) as PersonaSettings
   } catch {
-    return { tone: "empathetic", empathyLevel: 70, formality: 65, customInstructions: "" }
+    return defaults
   }
 }
 

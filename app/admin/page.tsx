@@ -121,7 +121,11 @@ async function getDashboardData(): Promise<{
     }
   }
 
-  return { items: readKnowledge(), persona: readPersona(), logsCount: 0 }
+  try {
+    return { items: readKnowledge(), persona: readPersona(), logsCount: 0 }
+  } catch {
+    return { items: [], persona: { tone: "empathetic" as const, empathyLevel: 70, formality: 65, customInstructions: "" }, logsCount: 0 }
+  }
 }
 
 export default async function AdminDashboard() {
