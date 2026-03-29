@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         if (msg.includes("already") || msg.includes("registered") || msg.includes("duplicate") || msg.includes("User already")) {
           msg = "이미 등록된 이메일입니다. 로그인을 시도해보세요."
         } else if (msg.includes("Database error") || msg.includes("database")) {
-          msg = "데이터베이스 오류가 발생했습니다. Supabase SQL Editor에서 supabase-schema-v2.sql을 실행하고, handle_new_user 트리거에 EXCEPTION 처리가 있는지 확인해주세요."
+          return NextResponse.json({ error: "DB_SETUP_NEEDED" }, { status: 409 })
         } else if (msg.includes("password")) {
           msg = "비밀번호는 최소 6자 이상이어야 합니다."
         } else if (msg.includes("Invalid email")) {
