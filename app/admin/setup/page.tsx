@@ -2,6 +2,44 @@
 
 import { useState, useEffect } from "react"
 
+function StorageBucketSetup() {
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle")
+  const [msg, setMsg] = useState("")
+
+  async function handleCreate() {
+    setStatus("loading")
+    setMsg("")
+    try {
+      const res = await fetch("/api/storage/ensure-bucket", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) { setStatus("error"); setMsg(data.error ?? "버킷 생성 실패"); return }
+      setStatus("ok")
+      setMsg(data.created ? "pdf-uploads 버킷이 생성되었습니다." : "pdf-uploads 버킷이 이미 존재합니다.")
+    } catch {
+      setStatus("error")
+      setMsg("연결 오류가 발생했습니다.")
+    }
+  }
+
+  return (
+    <div>
+      <button
+        onClick={handleCreate}
+        disabled={status === "loading"}
+        className="w-full h-11 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
+        style={{ background: "#3E2D9B" }}
+      >
+        {status === "loading" ? "생성 중..." : "Storage 버킷 자동 생성"}
+      </button>
+      {msg && (
+        <div className={`mt-3 p-3 rounded-2xl text-sm ${status === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+          {status === "ok" ? "✓ " : "✗ "}{msg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SetupPage() {
   const [sql, setSql] = useState("")
   const [copied, setCopied] = useState(false)
@@ -168,8 +206,20 @@ export default function SetupPage() {
         </div>
       </div>
 
+      {/* Storage 버킷 생성 */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mt-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-6 h-6 rounded-full bg-[#3E2D9B] text-white text-xs font-bold flex items-center justify-center">3</span>
+          <h2 className="font-semibold text-slate-800">Storage 버킷 생성 (파일 업로드용)</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-3 ml-8">
+          PDF/이미지 파일 업로드를 위한 저장 공간입니다. 아래 버튼으로 자동 생성됩니다.
+        </p>
+        <StorageBucketSetup />
+      </div>
+
       <p className="text-center text-xs text-slate-400 mt-6">
-        설정 완료 후 매뉴얼 페이지에서 파일 업로드를 다시 시도하세요.
+        1~3단계 완료 후 매뉴얼 페이지에서 파일 업로드를 다시 시도하세요.
       </p>
     </div>
   )

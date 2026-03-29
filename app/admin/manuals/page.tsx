@@ -173,86 +173,84 @@ export default function ManualsPage() {
     setUploadFileType(ft)
   }
 
+  async function callUploadApi(formDataOrJson: FormData | object): Promise<boolean> {
+    const isFormData = formDataOrJson instanceof FormData
+    const res = await fetch("/api/knowledge/upload", {
+      method: "POST",
+      headers: isFormData ? undefined : { "Content-Type": "application/json" },
+      body: isFormData ? formDataOrJson : JSON.stringify(formDataOrJson),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      if (data.error === "DB_SETUP_NEEDED" || res.status === 409) {
+        const sqlRes = await fetch("/api/setup").catch(() => null)
+        const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
+        setDbSetupSql(sqlData.sql ?? "")
+        setDbSetupNeeded(true)
+        return false
+      }
+      setPdfError(data.error ?? "처리에 실패했습니다.")
+      return false
+    }
+    setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed, fileType: data.fileType })
+    setUploadFile(null); setUploadFileType(null); setPdfTags("")
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    fetchItems()
+    return true
+  }
+
   async function handlePdfUpload(e: React.FormEvent) {
     e.preventDefault()
     if (!uploadFile) { setPdfError("파일을 선택해주세요."); return }
     setPdfUploading(true)
     setPdfError("")
     setPdfSuccess(null)
+
     try {
-      const supabase = createSupabaseBrowserClient()
-      const isImage = uploadFileType === "image"
-      const mimeType = isImage
-        ? (uploadFile.type || "image/jpeg")
-        : "application/pdf"
-      const folder = isImage ? "images" : "pdfs"
-      const storagePath = `${folder}/${Date.now()}_${uploadFile.name.replace(/\s+/g, "_")}`
+      // 1단계: 버킷 생성 보장 (없으면 서버에서 자동 생성)
+      await fetch("/api/storage/ensure-bucket", { method: "POST" }).catch(() => {})
 
-      // 1단계: Supabase Storage에 직접 업로드
-      const { error: uploadErr } = await supabase.storage
-        .from("pdf-uploads")
-        .upload(storagePath, uploadFile, { contentType: mimeType, upsert: false })
+      // 2단계: Supabase Storage에 직접 업로드 시도
+      let storageOk = false
+      let storagePath = ""
+      try {
+        const supabase = createSupabaseBrowserClient()
+        const isImage = uploadFileType === "image"
+        const mimeType = isImage ? (uploadFile.type || "image/jpeg") : "application/pdf"
+        const folder = isImage ? "images" : "pdfs"
+        storagePath = `${folder}/${Date.now()}_${uploadFile.name.replace(/\s+/g, "_")}`
 
-      if (uploadErr) {
-        // Storage 버킷 없을 경우 multipart 폴백
-        if (uploadErr.message?.includes("Bucket not found") || uploadErr.message?.includes("bucket")) {
-          const fd = new FormData()
-          fd.append("file", uploadFile)
-          fd.append("priority", pdfPriority)
-          fd.append("tags", pdfTags)
-          const r = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
-          const d = await r.json()
-          if (!r.ok) {
-            if (d.error === "DB_SETUP_NEEDED" || r.status === 409) {
-              const sqlRes = await fetch("/api/setup").catch(() => null)
-              const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
-              setDbSetupSql(sqlData.sql ?? "")
-              setDbSetupNeeded(true)
-              return
-            }
-            setPdfError(d.error ?? "업로드 실패")
-            return
-          }
-          setPdfSuccess({ fileName: d.fileName, chunks: d.chunks, characters: d.characters, ocrUsed: d.ocrUsed, fileType: d.fileType })
-          setUploadFile(null); setUploadFileType(null); setPdfTags("")
-          if (fileInputRef.current) fileInputRef.current.value = ""
-          fetchItems(); return
-        }
-        setPdfError(`Storage 업로드 실패: ${uploadErr.message}`)
-        return
+        const { error: uploadErr } = await supabase.storage
+          .from("pdf-uploads")
+          .upload(storagePath, uploadFile, { contentType: mimeType, upsert: false })
+
+        if (!uploadErr) storageOk = true
+        else console.warn("[upload] storage error:", uploadErr.message)
+      } catch (storageErr) {
+        console.warn("[upload] storage exception:", storageErr)
       }
 
-      // 2단계: API에 경로 전달 → 내용 추출 + 지식베이스 저장
-      const res = await fetch("/api/knowledge/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      if (storageOk) {
+        // 스토리지 업로드 성공 → API에 경로 전달
+        await callUploadApi({
           storagePath,
           originalName: uploadFile.name,
           priority: pdfPriority,
           tags: pdfTags,
           bucket: "pdf-uploads",
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        if (data.error === "DB_SETUP_NEEDED" || res.status === 409) {
-          const sqlRes = await fetch("/api/setup").catch(() => null)
-          const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
-          setDbSetupSql(sqlData.sql ?? "")
-          setDbSetupNeeded(true)
+        })
+      } else {
+        // 스토리지 실패 → 직접 multipart 전송 (4.5MB 이하 파일)
+        if (uploadFile.size > 4 * 1024 * 1024) {
+          setPdfError("파일이 너무 큽니다. Supabase Storage 설정을 확인해주세요.\n관리자 패널 → DB 초기 설정 메뉴에서 Storage 버킷을 생성해주세요.")
           return
         }
-        setPdfError(data.error ?? "처리에 실패했습니다.")
-        return
+        const fd = new FormData()
+        fd.append("file", uploadFile)
+        fd.append("priority", pdfPriority)
+        fd.append("tags", pdfTags)
+        await callUploadApi(fd)
       }
-
-      setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed, fileType: data.fileType })
-      setUploadFile(null)
-      setUploadFileType(null)
-      setPdfTags("")
-      if (fileInputRef.current) fileInputRef.current.value = ""
-      fetchItems()
     } catch {
       setPdfError("업로드 중 오류가 발생했습니다.")
     } finally {
