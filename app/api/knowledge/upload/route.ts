@@ -1,0 +1,139 @@
+import { NextRequest, NextResponse } from "next/server"
+import {
+  isSupabaseConfigured,
+  createSupabaseAdminClient,
+  getUserProfile,
+} from "@/lib/supabase/server"
+import { getSession } from "@/lib/auth"
+import { addKnowledgeItem } from "@/lib/store"
+
+async function requireDirectorOrAdmin() {
+  if (isSupabaseConfigured()) {
+    const profile = await getUserProfile()
+    if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
+      return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), profile: null }
+    }
+    return { error: null, profile }
+  }
+  const session = await getSession()
+  if (!session || session.role !== "admin") {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), profile: null }
+  }
+  return { error: null, profile: null }
+}
+
+// PDF 텍스트를 지식 항목으로 분할 (최대 2000자 청크)
+function chunkText(text: string, maxChunkSize = 2000): string[] {
+  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+  const chunks: string[] = []
+  let current = ""
+
+  for (const para of paragraphs) {
+    if ((current + "\n\n" + para).length > maxChunkSize && current) {
+      chunks.push(current.trim())
+      current = para
+    } else {
+      current = current ? current + "\n\n" + para : para
+    }
+  }
+  if (current.trim()) chunks.push(current.trim())
+
+  // 청크가 없으면 maxChunkSize 단위로 분할
+  if (chunks.length === 0 && text.trim()) {
+    for (let i = 0; i < text.length; i += maxChunkSize) {
+      chunks.push(text.slice(i, i + maxChunkSize).trim())
+    }
+  }
+
+  return chunks.filter(Boolean)
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { error: authError, profile } = await requireDirectorOrAdmin()
+    if (authError) return authError
+
+    const formData = await req.formData()
+    const file = formData.get("file") as File | null
+    const priority = (formData.get("priority") as string) || "medium"
+    const tags = (formData.get("tags") as string) || ""
+
+    if (!file) {
+      return NextResponse.json({ error: "PDF 파일을 선택해주세요." }, { status: 400 })
+    }
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      return NextResponse.json({ error: "PDF 파일만 업로드 가능합니다." }, { status: 400 })
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "파일 크기는 10MB 이하여야 합니다." }, { status: 400 })
+    }
+
+    // PDF → Buffer → 텍스트 추출
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // pdf-parse는 require()로 가져와야 Next.js 빌드에서 정상 동작
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse")
+    const parsed = await pdfParse(buffer)
+    const rawText: string = parsed.text ?? ""
+
+    if (!rawText.trim()) {
+      return NextResponse.json({ error: "PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF는 지원하지 않습니다." }, { status: 400 })
+    }
+
+    const baseName = file.name.replace(/\.pdf$/i, "")
+    const parsedTags: string[] = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+    if (!parsedTags.includes("PDF")) parsedTags.push("PDF")
+
+    const chunks = chunkText(rawText)
+    const createdItems: string[] = []
+
+    if (isSupabaseConfigured()) {
+      const db = createSupabaseAdminClient()
+      for (let i = 0; i < chunks.length; i++) {
+        const title = chunks.length === 1
+          ? baseName
+          : `${baseName} (${i + 1}/${chunks.length})`
+        const { data, error } = await db.from("knowledge_base").insert({
+          category: "manual",
+          title,
+          content: chunks[i],
+          priority,
+          tags: parsedTags,
+          academy_id: profile?.academyId ?? null,
+        }).select("id").single()
+        if (!error && data) createdItems.push(data.id)
+      }
+    } else {
+      for (let i = 0; i < chunks.length; i++) {
+        const title = chunks.length === 1
+          ? baseName
+          : `${baseName} (${i + 1}/${chunks.length})`
+        const item = addKnowledgeItem({
+          category: "manual",
+          title,
+          content: chunks[i],
+          priority: priority as "low" | "medium" | "high",
+          tags: parsedTags,
+        })
+        createdItems.push(item.id)
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      fileName: file.name,
+      chunks: chunks.length,
+      characters: rawText.length,
+      ids: createdItems,
+    })
+  } catch (err) {
+    console.error("[POST /api/knowledge/upload]", err)
+    const msg = err instanceof Error ? err.message : "서버 오류가 발생했습니다."
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}

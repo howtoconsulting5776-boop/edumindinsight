@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   BookOpen01Icon,
@@ -8,6 +8,9 @@ import {
   Delete01Icon,
   Tag01Icon,
   AlertDiamondIcon,
+  Upload01Icon,
+  FileIcon,
+  CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,6 +65,17 @@ export default function ManualsPage() {
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
   const [tags, setTags] = useState("")
 
+  // PDF upload state
+  const [showPdfUpload, setShowPdfUpload] = useState(false)
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [pdfPriority, setPdfPriority] = useState<"low" | "medium" | "high">("medium")
+  const [pdfTags, setPdfTags] = useState("")
+  const [pdfUploading, setPdfUploading] = useState(false)
+  const [pdfError, setPdfError] = useState("")
+  const [pdfSuccess, setPdfSuccess] = useState<{ fileName: string; chunks: number; characters: number } | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const fetchItems = useCallback(async () => {
     setLoading(true)
     try {
@@ -111,6 +125,49 @@ export default function ManualsPage() {
     fetchItems()
   }
 
+  function handleFileChange(file: File | null) {
+    setPdfError("")
+    setPdfSuccess(null)
+    if (!file) { setPdfFile(null); return }
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setPdfError("PDF 파일만 업로드 가능합니다.")
+      setPdfFile(null)
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setPdfError("파일 크기는 10MB 이하여야 합니다.")
+      setPdfFile(null)
+      return
+    }
+    setPdfFile(file)
+  }
+
+  async function handlePdfUpload(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pdfFile) { setPdfError("PDF 파일을 선택해주세요."); return }
+    setPdfUploading(true)
+    setPdfError("")
+    setPdfSuccess(null)
+    try {
+      const fd = new FormData()
+      fd.append("file", pdfFile)
+      fd.append("priority", pdfPriority)
+      fd.append("tags", pdfTags)
+      const res = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (!res.ok) { setPdfError(data.error ?? "업로드에 실패했습니다."); return }
+      setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters })
+      setPdfFile(null)
+      setPdfTags("")
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      fetchItems()
+    } catch {
+      setPdfError("업로드 중 오류가 발생했습니다.")
+    } finally {
+      setPdfUploading(false)
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
@@ -124,15 +181,150 @@ export default function ManualsPage() {
             <p className="text-sm text-gray-500">학원 운영 Hard Rules를 등록하여 AI 분석에 반영하세요</p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-2xl shadow-md flex items-center gap-2"
-          style={{ background: "#3E2D9B" }}
-        >
-          <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
-          <span className="hidden sm:inline">매뉴얼 추가</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => { setShowPdfUpload(!showPdfUpload); setShowForm(false) }}
+            variant="outline"
+            className="rounded-2xl shadow-sm flex items-center gap-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-purple-50"
+          >
+            <HIcon icon={Upload01Icon} size={16} primary="#3E2D9B" secondary="#C4BEF0" />
+            <span className="hidden sm:inline">PDF 업로드</span>
+          </Button>
+          <Button
+            onClick={() => { setShowForm(!showForm); setShowPdfUpload(false) }}
+            className="rounded-2xl shadow-md flex items-center gap-2"
+            style={{ background: "#3E2D9B" }}
+          >
+            <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
+            <span className="hidden sm:inline">매뉴얼 추가</span>
+          </Button>
+        </div>
       </div>
+
+      {/* PDF Upload form */}
+      {showPdfUpload && (
+        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
+          <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+            <HIcon icon={Upload01Icon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
+            PDF 파일 업로드
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">PDF를 업로드하면 텍스트를 자동 추출하여 AI 지식베이스에 등록합니다.</p>
+
+          {pdfSuccess && (
+            <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 border border-green-100 mb-5">
+              <HIcon icon={CheckmarkCircle01Icon} size={18} primary="#10B981" secondary="#6EE7B7" />
+              <div>
+                <p className="text-green-700 text-sm font-semibold">{pdfSuccess.fileName} 업로드 완료!</p>
+                <p className="text-green-600 text-xs mt-0.5">
+                  {pdfSuccess.chunks}개 항목으로 분할 · {pdfSuccess.characters.toLocaleString()}자 추출
+                </p>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handlePdfUpload} className="space-y-5">
+            {/* Drop zone */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                handleFileChange(e.dataTransfer.files[0] ?? null)
+              }}
+              className={`cursor-pointer border-2 border-dashed rounded-2xl p-8 flex flex-col items-center gap-3 transition-colors ${
+                dragOver
+                  ? "border-[#3E2D9B] bg-purple-50"
+                  : pdfFile
+                  ? "border-green-300 bg-green-50"
+                  : "border-slate-200 bg-slate-50 hover:border-[#3E2D9B] hover:bg-purple-50"
+              }`}
+            >
+              <HIcon
+                icon={pdfFile ? FileIcon : Upload01Icon}
+                size={32}
+                primary={pdfFile ? "#10B981" : "#3E2D9B"}
+                secondary={pdfFile ? "#6EE7B7" : "#C4BEF0"}
+              />
+              {pdfFile ? (
+                <>
+                  <p className="text-sm font-semibold text-gray-800">{pdfFile.name}</p>
+                  <p className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(0)} KB</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-gray-700">PDF 파일을 드래그하거나 클릭하여 선택</p>
+                  <p className="text-xs text-gray-400">최대 10MB · PDF만 지원</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              className="hidden"
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-gray-700">우선순위</Label>
+                <Select value={pdfPriority} onValueChange={(v) => setPdfPriority(v as typeof pdfPriority)}>
+                  <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="high" className="rounded-xl"><span className="font-semibold text-red-600">🔴 높음</span></SelectItem>
+                    <SelectItem value="medium" className="rounded-xl"><span className="font-semibold text-amber-600">🟡 보통</span></SelectItem>
+                    <SelectItem value="low" className="rounded-xl"><span className="font-semibold text-gray-600">⚪ 낮음</span></SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-gray-700">태그 (쉼표 구분)</Label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <HIcon icon={Tag01Icon} size={15} primary="#9CA3AF" secondary="#C4BEF0" />
+                  </div>
+                  <Input
+                    value={pdfTags}
+                    onChange={(e) => setPdfTags(e.target.value)}
+                    placeholder="예: 규정, 원칙"
+                    className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {pdfError && (
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+                <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
+                <span className="text-red-600 text-sm">{pdfError}</span>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <Button
+                type="submit"
+                disabled={pdfUploading || !pdfFile}
+                className="flex-1 h-11 rounded-2xl font-semibold"
+                style={{ background: "#3E2D9B" }}
+              >
+                {pdfUploading ? "추출 중..." : "업로드 & 학습"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setShowPdfUpload(false); setPdfError(""); setPdfSuccess(null); setPdfFile(null) }}
+                className="flex-1 h-11 rounded-2xl font-semibold border-slate-200"
+              >
+                취소
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Add form */}
       {showForm && (
