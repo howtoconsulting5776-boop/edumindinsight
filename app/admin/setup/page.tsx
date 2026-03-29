@@ -7,13 +7,25 @@ export default function SetupPage() {
   const [copied, setCopied] = useState(false)
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [accessToken, setAccessToken] = useState("")
+  const [showToken, setShowToken] = useState(false)
 
+  // Supabase 프로젝트 ref 추출 (SQL 에디터 링크용)
+  const [projectRef, setProjectRef] = useState("")
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+    const ref = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? ""
+    setProjectRef(ref)
+
     fetch("/api/setup")
       .then((r) => r.json())
       .then((d) => setSql(d.sql ?? ""))
       .catch(() => {})
   }, [])
+
+  const sqlEditorUrl = projectRef
+    ? `https://supabase.com/dashboard/project/${projectRef}/sql/new`
+    : "https://supabase.com/dashboard"
 
   async function handleCopy() {
     await navigator.clipboard.writeText(sql)
@@ -22,10 +34,18 @@ export default function SetupPage() {
   }
 
   async function handleAutoSetup() {
+    if (!accessToken.trim()) {
+      alert("Personal Access Token을 입력해주세요.")
+      return
+    }
     setRunning(true)
     setResult(null)
     try {
-      const res = await fetch("/api/setup", { method: "POST" })
+      const res = await fetch("/api/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: accessToken.trim() }),
+      })
       const data = await res.json()
       setResult({ success: !!data.success, message: data.message ?? data.error ?? "완료" })
     } catch {
@@ -37,57 +57,106 @@ export default function SetupPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">데이터베이스 초기 설정</h1>
         <p className="text-slate-500 text-sm">
-          아래 SQL을 Supabase SQL Editor에서 실행하면 모든 테이블이 자동으로 생성됩니다.
+          아래 방법 중 하나를 선택하여 데이터베이스 테이블을 생성하세요.
         </p>
       </div>
 
-      {/* Step 1 — Auto setup */}
+      {/* 방법 1: Personal Access Token 자동 설정 */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mb-4">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 rounded-full bg-[#3E2D9B] text-white text-xs font-bold flex items-center justify-center">1</span>
-          <h2 className="font-semibold text-slate-800">자동 설정 (권장)</h2>
+          <h2 className="font-semibold text-slate-800">자동 설정 (Personal Access Token)</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-4">
-          Vercel과 Supabase가 연동된 경우 자동으로 설정됩니다.
+        <p className="text-xs text-slate-500 mb-4 ml-8">
+          Supabase Personal Access Token을 입력하면 자동으로 테이블을 생성합니다.
         </p>
+
+        {/* Token 발급 안내 */}
+        <div className="bg-blue-50 rounded-2xl p-4 mb-4 text-xs text-blue-700 leading-relaxed">
+          <strong>토큰 발급 방법:</strong><br />
+          1.{" "}
+          <a
+            href="https://supabase.com/dashboard/account/tokens"
+            target="_blank"
+            rel="noreferrer"
+            className="underline font-semibold"
+          >
+            supabase.com/dashboard/account/tokens
+          </a>{" "}
+          접속<br />
+          2. <strong>Generate new token</strong> 클릭 → 이름 입력 → 생성<br />
+          3. 생성된 토큰을 아래에 붙여넣기
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            type={showToken ? "text" : "password"}
+            value={accessToken}
+            onChange={(e) => setAccessToken(e.target.value)}
+            placeholder="sbp_xxxxxxxx..."
+            className="flex-1 h-11 px-4 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E2D9B]/30"
+          />
+          <button
+            onClick={() => setShowToken((v) => !v)}
+            className="px-4 rounded-2xl border border-slate-200 text-xs text-slate-500 hover:bg-slate-50"
+          >
+            {showToken ? "숨기기" : "보기"}
+          </button>
+        </div>
+
         <button
           onClick={handleAutoSetup}
-          disabled={running}
-          className="w-full h-11 rounded-2xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
+          disabled={running || !accessToken.trim()}
+          className="w-full h-11 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
           style={{ background: "#3E2D9B" }}
         >
           {running ? "설정 중..." : "자동 설정 실행"}
         </button>
+
         {result && (
           <div className={`mt-3 p-3 rounded-2xl text-sm ${result.success ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
             {result.success ? "✓ " : "⚠ "}{result.message}
+            {result.success && (
+              <div className="mt-1 text-xs">파일 업로드를 다시 시도해보세요.</div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Step 2 — Manual SQL */}
+      {/* 방법 2: Supabase SQL Editor 직접 실행 */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 rounded-full bg-[#3E2D9B] text-white text-xs font-bold flex items-center justify-center">2</span>
-          <h2 className="font-semibold text-slate-800">수동 설정 (Supabase SQL Editor)</h2>
+          <h2 className="font-semibold text-slate-800">수동 설정 (SQL Editor 직접 실행)</h2>
         </div>
+        <p className="text-xs text-slate-500 mb-4 ml-8">
+          Supabase 대시보드에서 SQL을 직접 실행합니다.
+        </p>
+
+        {/* 직접 링크 */}
+        <a
+          href={sqlEditorUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={handleCopy}
+          className="flex items-center justify-center gap-2 w-full h-11 rounded-2xl text-sm font-semibold border-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white transition-all mb-4"
+        >
+          SQL 복사 후 Supabase SQL Editor 열기 →
+        </a>
 
         <div className="bg-blue-50 rounded-2xl p-4 mb-4 text-xs text-blue-700 leading-relaxed">
           <strong>실행 순서:</strong><br />
-          1. <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="underline font-semibold">supabase.com/dashboard</a> 접속<br />
-          2. 프로젝트 선택<br />
-          3. 왼쪽 메뉴 → <strong>SQL Editor</strong> 클릭<br />
-          4. <strong>New query</strong> 클릭<br />
-          5. 아래 SQL을 전체 복사 → 붙여넣기<br />
-          6. 오른쪽 위 <strong>Run</strong> (또는 Ctrl+Enter) 클릭
+          1. 위 버튼 클릭 → SQL이 자동으로 클립보드에 복사됩니다<br />
+          2. Supabase SQL Editor에서 <strong>Ctrl+V</strong> (붙여넣기)<br />
+          3. 오른쪽 위 <strong>Run</strong> (또는 Ctrl+Enter) 클릭<br />
+          4. "Success" 메시지 확인 → 파일 업로드 재시도
         </div>
 
         <div className="relative">
-          <pre className="bg-gray-950 text-green-400 text-xs rounded-2xl p-5 overflow-auto max-h-96 leading-relaxed whitespace-pre-wrap font-mono">
+          <pre className="bg-gray-950 text-green-400 text-xs rounded-2xl p-5 overflow-auto max-h-72 leading-relaxed whitespace-pre-wrap font-mono">
             {sql || "SQL을 불러오는 중..."}
           </pre>
           <button
@@ -100,7 +169,7 @@ export default function SetupPage() {
       </div>
 
       <p className="text-center text-xs text-slate-400 mt-6">
-        SQL 실행 후 지식베이스 등록을 다시 시도하세요.
+        설정 완료 후 매뉴얼 페이지에서 파일 업로드를 다시 시도하세요.
       </p>
     </div>
   )

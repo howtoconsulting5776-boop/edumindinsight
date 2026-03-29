@@ -87,21 +87,35 @@ ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPT
 
 -- 6. persona_settings 테이블 (없으면 생성)
 CREATE TABLE IF NOT EXISTS public.persona_settings (
-  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  academy_id UUID REFERENCES public.academies(id) ON DELETE CASCADE,
-  persona    TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  id                  INTEGER PRIMARY KEY DEFAULT 1,
+  tone                TEXT NOT NULL DEFAULT 'empathetic',
+  empathy_level       INTEGER NOT NULL DEFAULT 70,
+  formality           INTEGER NOT NULL DEFAULT 65,
+  custom_instructions TEXT NOT NULL DEFAULT '',
+  academy_id          UUID REFERENCES public.academies(id) ON DELETE CASCADE,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.persona_settings ADD COLUMN IF NOT EXISTS tone                TEXT NOT NULL DEFAULT 'empathetic';
+ALTER TABLE public.persona_settings ADD COLUMN IF NOT EXISTS empathy_level       INTEGER NOT NULL DEFAULT 70;
+ALTER TABLE public.persona_settings ADD COLUMN IF NOT EXISTS formality           INTEGER NOT NULL DEFAULT 65;
+ALTER TABLE public.persona_settings ADD COLUMN IF NOT EXISTS custom_instructions TEXT NOT NULL DEFAULT '';
 `.trim()
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     // admin 또는 director 만 실행 가능
     const profile = await getUserProfile()
     if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
       return NextResponse.json({ error: "관리자 또는 학원장만 실행할 수 있습니다." }, { status: 403 })
     }
+
+    // 요청 body에서 accessToken 읽기 (런타임 입력 지원)
+    let bodyAccessToken: string | null = null
+    try {
+      const body = await req.json().catch(() => ({}))
+      bodyAccessToken = body?.accessToken ?? null
+    } catch { /* ignore */ }
 
     // 방법 1: DATABASE_URL / POSTGRES_URL 직접 연결
     const dbUrl =
@@ -124,37 +138,32 @@ export async function POST() {
       }
     }
 
-    // 방법 2: Supabase Management API (SUPABASE_ACCESS_TOKEN 있을 때)
-    const mgmtToken = process.env.SUPABASE_ACCESS_TOKEN
+    // 방법 2: Supabase Management API (환경변수 또는 런타임 토큰)
+    const mgmtToken = bodyAccessToken || process.env.SUPABASE_ACCESS_TOKEN
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
 
     if (mgmtToken && projectRef) {
       try {
-        // SQL을 세미콜론 단위로 분리해서 한 문장씩 실행
-        const statements = SETUP_SQL
-          .split(/;\s*\n/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-
-        for (const stmt of statements) {
-          const res = await fetch(
-            `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${mgmtToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ query: stmt }),
-            }
-          )
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            console.warn("[setup] mgmt API stmt failed:", err)
+        const res = await fetch(
+          `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${mgmtToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query: SETUP_SQL }),
           }
+        )
+        if (res.ok) {
+          return NextResponse.json({ success: true, method: "management_api", message: "데이터베이스 설정이 완료되었습니다." })
         }
-        return NextResponse.json({ success: true, method: "management_api", message: "데이터베이스 설정이 완료되었습니다." })
+        const errBody = await res.json().catch(() => ({}))
+        console.warn("[setup] mgmt API failed:", errBody)
+        if (res.status === 401) {
+          return NextResponse.json({ success: false, method: "manual", message: "토큰이 유효하지 않습니다. Personal Access Token을 다시 확인해주세요.", sql: SETUP_SQL })
+        }
       } catch (mgmtErr) {
         console.error("[setup] management API error:", mgmtErr)
       }

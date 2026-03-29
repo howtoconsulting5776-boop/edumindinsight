@@ -70,6 +70,8 @@ export default function ManualsPage() {
   const [sqlCopied, setSqlCopied] = useState(false)
   const [dbSetupRunning, setDbSetupRunning] = useState(false)
   const [dbSetupDone, setDbSetupDone] = useState(false)
+  const [dbAccessToken, setDbAccessToken] = useState("")
+  const [dbSetupError, setDbSetupError] = useState("")
 
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
@@ -607,14 +609,14 @@ export default function ManualsPage() {
     {/* ── DB 설정 필요 모달 ─────────────────────────────────────────────── */}
     {dbSetupNeeded && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-7 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100">
               <HIcon icon={DatabaseIcon} size={20} primary="#D97706" secondary="#FDE68A" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">데이터베이스 초기 설정 필요</h2>
-              <p className="text-xs text-gray-500">Supabase SQL Editor에서 아래 SQL을 실행해주세요</p>
+              <p className="text-xs text-gray-500">테이블 생성 후 파일 업로드가 가능합니다</p>
             </div>
           </div>
 
@@ -623,72 +625,126 @@ export default function ManualsPage() {
               <HIcon icon={CheckmarkCircle01Icon} size={20} primary="#10B981" secondary="#6EE7B7" />
               <div>
                 <p className="text-green-700 font-semibold text-sm">설정 완료!</p>
-                <p className="text-green-600 text-xs">이제 다시 등록을 시도해주세요.</p>
+                <p className="text-green-600 text-xs">파일 업로드를 다시 시도해주세요.</p>
               </div>
             </div>
           ) : (
             <>
-              <div className="relative mb-4">
-                <pre className="bg-gray-900 text-green-400 text-xs rounded-2xl p-4 overflow-auto max-h-48 leading-relaxed whitespace-pre-wrap">
-                  {dbSetupSql}
-                </pre>
+              {/* 방법 1: 토큰 자동 설정 */}
+              <div className="border border-slate-100 rounded-2xl p-4 mb-3">
+                <p className="text-xs font-semibold text-slate-700 mb-2">
+                  ① Personal Access Token으로 자동 설정
+                </p>
+                <div className="bg-blue-50 rounded-xl p-3 mb-3 text-xs text-blue-700 leading-relaxed">
+                  <a
+                    href="https://supabase.com/dashboard/account/tokens"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline font-bold"
+                  >
+                    supabase.com/dashboard/account/tokens
+                  </a>{" "}
+                  에서 토큰 발급 후 아래 입력
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="password"
+                    value={dbAccessToken}
+                    onChange={(e) => { setDbAccessToken(e.target.value); setDbSetupError("") }}
+                    placeholder="sbp_xxxxxxxx..."
+                    className="flex-1 h-9 px-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#3E2D9B]/30"
+                  />
+                </div>
+                {dbSetupError && (
+                  <p className="text-xs text-red-500 mb-2">{dbSetupError}</p>
+                )}
                 <button
                   onClick={async () => {
-                    await navigator.clipboard.writeText(dbSetupSql)
-                    setSqlCopied(true)
-                    setTimeout(() => setSqlCopied(false), 2000)
-                  }}
-                  className="absolute top-3 right-3 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
-                >
-                  {sqlCopied ? "✓ 복사됨" : "복사"}
-                </button>
-              </div>
-
-              <div className="bg-blue-50 rounded-2xl p-3 mb-4 text-xs text-blue-700 leading-relaxed">
-                <strong>실행 방법:</strong><br />
-                1. <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="underline font-semibold">Supabase Dashboard</a> 접속<br />
-                2. 프로젝트 선택 → <strong>SQL Editor</strong> 클릭<br />
-                3. 위 SQL 복사 후 붙여넣기 → <strong>Run</strong> 클릭<br />
-                4. 완료 후 아래 버튼 클릭
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={async () => {
+                    if (!dbAccessToken.trim()) { setDbSetupError("토큰을 입력해주세요."); return }
                     setDbSetupRunning(true)
+                    setDbSetupError("")
                     try {
-                      const res = await fetch("/api/setup", { method: "POST" })
+                      const res = await fetch("/api/setup", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ accessToken: dbAccessToken.trim() }),
+                      })
                       const data = await res.json()
                       if (data.success) {
                         setDbSetupDone(true)
                       } else {
-                        // 자동 실행 불가 → SQL 복사 안내
-                        await navigator.clipboard.writeText(dbSetupSql).catch(() => {})
-                        setSqlCopied(true)
-                        setTimeout(() => setSqlCopied(false), 3000)
-                        alert("자동 설정을 사용하려면 Vercel에 DATABASE_URL 또는 SUPABASE_ACCESS_TOKEN을 추가하세요.\n\nSQL이 클립보드에 복사되었습니다.\nSupabase SQL Editor에 붙여넣고 Run을 클릭하세요.")
+                        setDbSetupError(data.message ?? "설정에 실패했습니다.")
                       }
-                    } catch { /* ignore */ } finally { setDbSetupRunning(false) }
+                    } catch { setDbSetupError("연결 오류가 발생했습니다.") }
+                    finally { setDbSetupRunning(false) }
                   }}
                   disabled={dbSetupRunning}
-                  className="flex-1 h-10 rounded-2xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
                   style={{ background: "#3E2D9B" }}
                 >
-                  <HIcon icon={Settings01Icon} size={15} primary="white" secondary="rgba(255,255,255,0.5)" />
-                  {dbSetupRunning ? "자동 설정 중..." : "자동 설정 시도"}
+                  <HIcon icon={Settings01Icon} size={13} primary="white" secondary="rgba(255,255,255,0.5)" />
+                  {dbSetupRunning ? "자동 설정 중..." : "자동 설정 실행"}
                 </button>
+              </div>
+
+              {/* 방법 2: 수동 SQL */}
+              <div className="border border-slate-100 rounded-2xl p-4">
+                <p className="text-xs font-semibold text-slate-700 mb-2">
+                  ② SQL Editor에서 직접 실행
+                </p>
+
+                <div className="relative mb-3">
+                  <pre className="bg-gray-900 text-green-400 text-xs rounded-xl p-3 overflow-auto max-h-32 leading-relaxed whitespace-pre-wrap">
+                    {dbSetupSql}
+                  </pre>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(dbSetupSql)
+                      setSqlCopied(true)
+                      setTimeout(() => setSqlCopied(false), 2000)
+                    }}
+                    className="absolute top-2 right-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  >
+                    {sqlCopied ? "✓ 복사됨" : "복사"}
+                  </button>
+                </div>
+
+                {/* Supabase SQL Editor 직접 링크 */}
+                {(() => {
+                  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+                  const ref = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
+                  const editorUrl = ref
+                    ? `https://supabase.com/dashboard/project/${ref}/sql/new`
+                    : "https://supabase.com/dashboard"
+                  return (
+                    <a
+                      href={editorUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(dbSetupSql).catch(() => {})
+                        setSqlCopied(true)
+                        setTimeout(() => setSqlCopied(false), 2000)
+                      }}
+                      className="flex items-center justify-center gap-1.5 w-full h-9 rounded-xl text-xs font-semibold border-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white transition-all mb-2"
+                    >
+                      SQL 복사 후 Supabase SQL Editor 열기 →
+                    </a>
+                  )
+                })()}
+
                 <button
                   onClick={() => setDbSetupDone(true)}
-                  className="flex-1 h-10 rounded-2xl text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="w-full h-9 rounded-xl text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                 >
-                  SQL 실행 완료
+                  SQL 실행 완료 (업로드 재시도)
                 </button>
               </div>
             </>
           )}
 
           <button
-            onClick={() => { setDbSetupNeeded(false); setDbSetupDone(false) }}
+            onClick={() => { setDbSetupNeeded(false); setDbSetupDone(false); setDbSetupError(""); setDbAccessToken("") }}
             className="mt-4 w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             닫기
