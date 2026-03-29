@@ -380,9 +380,6 @@ export default function LoginPage() {
                               secondary={isActive ? "#C4BEF0" : "#D1D5DB"}
                             />
                             {r === "director" ? "학원장" : "선생님"}
-                            <span className="text-xs font-normal opacity-70">
-                              {r === "director" ? "학원 개설" : "학원 합류"}
-                            </span>
                           </button>
                         )
                       })}
