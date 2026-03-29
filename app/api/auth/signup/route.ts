@@ -100,15 +100,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 자동 로그인
-      const supabase = await createSupabaseServerClient()
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInErr) {
-        console.warn("[signup] auto sign-in failed:", signInErr.message)
-        return NextResponse.json({ success: true, autoLogin: false })
-      }
-
-      return NextResponse.json({ success: true, autoLogin: true, role: role ?? "teacher" })
+      // 서버에서 자동 로그인을 시도하지 않음.
+      // 클라이언트(브라우저)에서 signInWithPassword()를 직접 호출해야
+      // 세션 쿠키가 브라우저에 올바르게 저장됩니다.
+      return NextResponse.json({ success: true, autoLogin: false, role: role ?? "teacher" })
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -139,16 +134,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 })
     }
 
-    if (signupData?.session) {
-      return NextResponse.json({ success: true, autoLogin: true, role: role ?? "teacher" })
+    // 경로 B에서는 클라이언트가 브라우저에서 직접 로그인하도록 유도
+    // (서버에서 세션 쿠키를 설정하면 브라우저에 제대로 전달되지 않음)
+    if (signupData?.user && !signupData.session) {
+      // 이메일 인증 필요
+      return NextResponse.json({ success: true, autoLogin: false, needsEmailVerification: true })
     }
 
-    // 이메일 인증 필요
-    return NextResponse.json({
-      success: true,
-      autoLogin: false,
-      needsEmailVerification: true,
-    })
+    return NextResponse.json({ success: true, autoLogin: false, role: role ?? "teacher" })
 
   } catch (err) {
     console.error("[POST /api/auth/signup]", err)

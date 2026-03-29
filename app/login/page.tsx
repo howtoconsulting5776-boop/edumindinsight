@@ -225,15 +225,29 @@ export default function LoginPage() {
       return
     }
 
-    if (data.autoLogin) {
-      const dest = (data.role ?? signupRole) === "director" ? "/admin" : "/"
-      router.push(dest)
-      return
-    }
-
     if (data.needsEmailVerification) {
       setMode("signup_done")
       setError("")
+      return
+    }
+
+    // 회원가입 성공 → 브라우저에서 직접 로그인 (쿠키를 올바르게 설정)
+    if (data.success) {
+      try {
+        const supabase = createSupabaseBrowserClient()
+        const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password })
+        if (loginErr) {
+          // 로그인 실패해도 회원가입은 성공했으니 완료 화면 표시
+          console.warn("[signup] browser sign-in failed:", loginErr.message)
+          setMode("signup_done")
+          return
+        }
+        const dest = (data.role ?? signupRole) === "director" ? "/admin" : "/"
+        router.push(dest)
+        router.refresh()
+      } catch {
+        setMode("signup_done")
+      }
       return
     }
 
