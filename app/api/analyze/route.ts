@@ -477,6 +477,7 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : String(err)
     console.error("[analyze] error:", message)
 
+    // Rate limit
     const retryMatch = message.match(/retry in ([\d.]+)s/i)
     if (retryMatch) {
       const seconds = Math.ceil(parseFloat(retryMatch[1]))
@@ -489,8 +490,29 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Network / connection timeout → user-friendly message
+    const isNetworkError =
+      /connect timeout|connection timeout|connect refused|econnrefused|enotfound|network|fetch failed|etimedout|socket hang up/i.test(message)
+    if (isNetworkError) {
+      return NextResponse.json(
+        {
+          error:
+            "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.\n\n가능한 원인:\n• 인터넷 연결 상태 확인\n• Google AI API 키 유효성 확인\n• 잠시 후 재시도",
+        },
+        { status: 503 }
+      )
+    }
+
+    // API key invalid
+    if (/api.?key|invalid.?key|unauthorized|403/i.test(message)) {
+      return NextResponse.json(
+        { error: "Google AI API 키가 유효하지 않습니다. 관리자에게 문의하세요." },
+        { status: 401 }
+      )
+    }
+
     return NextResponse.json(
-      { error: `분석 중 오류가 발생했습니다: ${message}` },
+      { error: "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." },
       { status: 500 }
     )
   }

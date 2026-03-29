@@ -301,8 +301,10 @@ export default function Home() {
       if (res.status === 429) {
         setError(data.error as string ?? "잠시 후 다시 시도해주세요.")
         setRetryCountdown((data.retryAfter as number) ?? 30)
+      } else if (res.status === 503) {
+        setError(data.error as string ?? "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
       } else if (!res.ok) {
-        setError(data.error as string ?? `분석 중 오류가 발생했습니다. (HTTP ${res.status})`)
+        setError(data.error as string ?? "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
       } else {
         setResult(data.result as AnalysisResult)
         setUsedModel(data.model as string)
@@ -461,7 +463,7 @@ export default function Home() {
             <HIcon icon={AlertDiamondIcon} size={16} primary="#dc2626" secondary="#fecaca" />
             <AlertTitle>분석 실패</AlertTitle>
             <AlertDescription className="space-y-1.5">
-              <p>{error}</p>
+              <p className="whitespace-pre-line">{error}</p>
               {retryCountdown !== null && retryCountdown > 0 && (
                 <p className="font-bold">{retryCountdown}초 후 재시도하실 수 있습니다.</p>
               )}
