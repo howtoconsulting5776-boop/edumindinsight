@@ -4,7 +4,7 @@ import { getUserProfile } from "@/lib/supabase/server"
 export const runtime = "nodejs"
 export const maxDuration = 30
 
-// 최소 필수 SQL: profiles 테이블 생성 + 안전한 트리거 함수
+// 전체 필수 SQL: 모든 테이블 생성 + 트리거
 const SETUP_SQL = `
 -- 1. profiles 테이블 생성 (없으면)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -62,6 +62,37 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 5. knowledge_base 테이블 (없으면 생성, 있으면 누락 컬럼 추가)
+CREATE TABLE IF NOT EXISTS public.knowledge_base (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  category   TEXT NOT NULL DEFAULT 'general',
+  title      TEXT NOT NULL,
+  content    TEXT NOT NULL,
+  priority   TEXT NOT NULL DEFAULT 'medium',
+  tags       TEXT[] DEFAULT '{}',
+  situation  TEXT,
+  response   TEXT,
+  outcome    TEXT,
+  academy_id UUID REFERENCES public.academies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS tags       TEXT[] DEFAULT '{}';
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS situation  TEXT;
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS response   TEXT;
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS outcome    TEXT;
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS academy_id UUID REFERENCES public.academies(id) ON DELETE CASCADE;
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 6. persona_settings 테이블 (없으면 생성)
+CREATE TABLE IF NOT EXISTS public.persona_settings (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  academy_id UUID REFERENCES public.academies(id) ON DELETE CASCADE,
+  persona    TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 `.trim()
 
 export async function POST() {

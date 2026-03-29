@@ -36,18 +36,29 @@ ALTER TABLE academies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NO
 UPDATE academies SET code = upper(substr(md5(random()::text || id::text), 1, 8))
   WHERE code IS NULL OR code = '';
 
--- ── 4. knowledge_base: 누락된 컬럼 추가 ────────────────────────────────────
--- NULL = 글로벌(모든 학원 공유), UUID = 특정 학원 전용
-ALTER TABLE knowledge_base
-  ADD COLUMN IF NOT EXISTS academy_id UUID REFERENCES academies(id) ON DELETE CASCADE;
-ALTER TABLE knowledge_base
-  ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
-ALTER TABLE knowledge_base
-  ADD COLUMN IF NOT EXISTS situation TEXT;
-ALTER TABLE knowledge_base
-  ADD COLUMN IF NOT EXISTS response  TEXT;
-ALTER TABLE knowledge_base
-  ADD COLUMN IF NOT EXISTS outcome   TEXT;
+-- ── 4. knowledge_base 테이블 (없으면 생성, 있으면 누락 컬럼만 추가) ─────────
+CREATE TABLE IF NOT EXISTS knowledge_base (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  category   TEXT NOT NULL DEFAULT 'general',
+  title      TEXT NOT NULL,
+  content    TEXT NOT NULL,
+  priority   TEXT NOT NULL DEFAULT 'medium',
+  tags       TEXT[] DEFAULT '{}',
+  situation  TEXT,
+  response   TEXT,
+  outcome    TEXT,
+  academy_id UUID REFERENCES academies(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 기존 테이블에 누락 컬럼 안전 추가
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS academy_id UUID REFERENCES academies(id) ON DELETE CASCADE;
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS tags       TEXT[] DEFAULT '{}';
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS situation  TEXT;
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS response   TEXT;
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS outcome    TEXT;
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- ── 5. persona_settings: academy_id 컬럼 추가 ──────────────────────────────
 ALTER TABLE persona_settings

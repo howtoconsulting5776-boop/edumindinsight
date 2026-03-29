@@ -13,6 +13,8 @@ import {
   FileIcon,
   CheckmarkCircle01Icon,
   Image01Icon,
+  DatabaseIcon,
+  Settings01Icon,
 } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,6 +63,13 @@ export default function ManualsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [showForm, setShowForm] = useState(false)
+
+  // DB 설정 모달
+  const [dbSetupNeeded, setDbSetupNeeded] = useState(false)
+  const [dbSetupSql, setDbSetupSql] = useState("")
+  const [sqlCopied, setSqlCopied] = useState(false)
+  const [dbSetupRunning, setDbSetupRunning] = useState(false)
+  const [dbSetupDone, setDbSetupDone] = useState(false)
 
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
@@ -114,6 +123,13 @@ export default function ManualsPage() {
       })
       if (!res.ok) {
         const d = await res.json()
+        if (d.error?.includes("스키마") || d.error?.includes("schema") || d.error?.includes("Could not find")) {
+          const sqlRes = await fetch("/api/setup").catch(() => null)
+          const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
+          setDbSetupSql(sqlData.sql ?? "")
+          setDbSetupNeeded(true)
+          return
+        }
         setError(d.error ?? "등록에 실패했습니다.")
         return
       }
@@ -566,5 +582,90 @@ export default function ManualsPage() {
         )}
       </div>
     </div>
+
+    {/* ── DB 설정 필요 모달 ─────────────────────────────────────────────── */}
+    {dbSetupNeeded && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100">
+              <HIcon icon={DatabaseIcon} size={20} primary="#D97706" secondary="#FDE68A" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">데이터베이스 초기 설정 필요</h2>
+              <p className="text-xs text-gray-500">Supabase SQL Editor에서 아래 SQL을 실행해주세요</p>
+            </div>
+          </div>
+
+          {dbSetupDone ? (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 border border-green-200 mb-4">
+              <HIcon icon={CheckmarkCircle01Icon} size={20} primary="#10B981" secondary="#6EE7B7" />
+              <div>
+                <p className="text-green-700 font-semibold text-sm">설정 완료!</p>
+                <p className="text-green-600 text-xs">이제 다시 등록을 시도해주세요.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="relative mb-4">
+                <pre className="bg-gray-900 text-green-400 text-xs rounded-2xl p-4 overflow-auto max-h-48 leading-relaxed whitespace-pre-wrap">
+                  {dbSetupSql}
+                </pre>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(dbSetupSql)
+                    setSqlCopied(true)
+                    setTimeout(() => setSqlCopied(false), 2000)
+                  }}
+                  className="absolute top-3 right-3 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
+                >
+                  {sqlCopied ? "✓ 복사됨" : "복사"}
+                </button>
+              </div>
+
+              <div className="bg-blue-50 rounded-2xl p-3 mb-4 text-xs text-blue-700 leading-relaxed">
+                <strong>실행 방법:</strong><br />
+                1. <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="underline font-semibold">Supabase Dashboard</a> 접속<br />
+                2. 프로젝트 선택 → <strong>SQL Editor</strong> 클릭<br />
+                3. 위 SQL 복사 후 붙여넣기 → <strong>Run</strong> 클릭<br />
+                4. 완료 후 아래 버튼 클릭
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    setDbSetupRunning(true)
+                    try {
+                      const res = await fetch("/api/setup", { method: "POST" })
+                      const data = await res.json()
+                      if (data.success) setDbSetupDone(true)
+                    } catch { /* ignore */ } finally { setDbSetupRunning(false) }
+                  }}
+                  disabled={dbSetupRunning}
+                  className="flex-1 h-10 rounded-2xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "#3E2D9B" }}
+                >
+                  <HIcon icon={Settings01Icon} size={15} primary="white" secondary="rgba(255,255,255,0.5)" />
+                  {dbSetupRunning ? "자동 설정 중..." : "자동 설정 시도"}
+                </button>
+                <button
+                  onClick={() => setDbSetupDone(true)}
+                  className="flex-1 h-10 rounded-2xl text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  SQL 실행 완료
+                </button>
+              </div>
+            </>
+          )}
+
+          <button
+            onClick={() => { setDbSetupNeeded(false); setDbSetupDone(false) }}
+            className="mt-4 w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    )}
   )
 }
