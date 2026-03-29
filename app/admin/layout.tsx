@@ -1,20 +1,24 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import AdminSidebar from "./AdminSidebar"
-import { getUserProfile } from "@/lib/supabase/server"
 import type { UserRole } from "@/lib/supabase/server"
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  let role: UserRole = "director"
-  let academyName: string | null = null
-  let fullName: string | null = null
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [role, setRole] = useState<UserRole>("director")
+  const [academyName, setAcademyName] = useState<string | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
 
-  try {
-    const profile = await getUserProfile()
-    role = profile?.role ?? "director"
-    academyName = profile?.academyName ?? null
-    fullName = profile?.fullName ?? null
-  } catch {
-    // Supabase 연결 실패 시 기본값으로 렌더링
-  }
+  useEffect(() => {
+    fetch("/api/auth/role")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.role) setRole(data.role as UserRole)
+        if (data.academyName) setAcademyName(data.academyName)
+        if (data.fullName) setFullName(data.fullName)
+      })
+      .catch(() => { /* 기본값 유지 */ })
+  }, [])
 
   return (
     <div className="flex min-h-screen" style={{ background: "#F0EFFB" }}>
