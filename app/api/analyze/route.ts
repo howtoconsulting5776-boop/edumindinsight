@@ -362,6 +362,14 @@ async function saveCounselingLog(
 
 // ── Route handler ───────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  // Guard: ensure the Google API key is available before doing any work
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return NextResponse.json(
+      { error: "서버 설정 오류: Google AI API 키가 구성되지 않았습니다. 관리자에게 문의하세요." },
+      { status: 503 }
+    )
+  }
+
   try {
     const body = await req.json()
     const rawText: string = body.text ?? ""

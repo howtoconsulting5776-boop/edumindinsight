@@ -40,11 +40,15 @@ function HIcon({
   )
 }
 
-// Detect whether Supabase env vars are available at build time.
-// NEXT_PUBLIC_ vars are inlined by the bundler.
+// Supabase is always the primary auth method.
+// Legacy fallback is only used if both vars are missing at runtime.
 const SUPABASE_CONFIGURED =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Always show the Supabase UI (email + sign-up) even if env vars are not
+// inlined at build time — they will be available at runtime on the server.
+const SHOW_SUPABASE_UI = true
 
 type Mode = "login" | "signup" | "signup_done"
 
@@ -156,6 +160,7 @@ export default function LoginPage() {
       } else if (SUPABASE_CONFIGURED) {
         await loginWithSupabase()
       } else {
+        // Fallback: Supabase env vars not available at runtime (e.g. missing Vercel config)
         await loginWithLegacy()
       }
     } catch {
@@ -310,17 +315,13 @@ export default function LoginPage() {
                       {mode === "signup" ? "회원가입" : "로그인"}
                     </h2>
                     <p className="text-sm text-gray-500">
-                      {mode === "signup"
-                        ? "새 계정을 만드세요"
-                        : SUPABASE_CONFIGURED
-                        ? "이메일로 접속하세요"
-                        : "계정으로 접속하세요"}
+                      {mode === "signup" ? "새 계정을 만드세요" : "이메일로 접속하세요"}
                     </p>
                   </div>
                 </div>
 
-                {/* 탭 토글 (Supabase 모드에서만) */}
-                {SUPABASE_CONFIGURED && (
+                {/* 탭 토글 */}
+                {SHOW_SUPABASE_UI && (
                   <div className="flex rounded-2xl bg-slate-100 p-1 mb-6">
                     <button
                       type="button"
@@ -374,7 +375,7 @@ export default function LoginPage() {
                   {/* 이메일 */}
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
-                      {SUPABASE_CONFIGURED ? "이메일" : "아이디"}
+                      이메일
                     </Label>
                     <div className="relative">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -382,12 +383,12 @@ export default function LoginPage() {
                       </div>
                       <Input
                         id="email"
-                        type={SUPABASE_CONFIGURED ? "email" : "text"}
+                        type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder={SUPABASE_CONFIGURED ? "이메일 주소를 입력하세요" : "아이디를 입력하세요"}
+                        placeholder="이메일 주소를 입력하세요"
                         className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
-                        autoComplete={SUPABASE_CONFIGURED ? "email" : "username"}
+                        autoComplete="email"
                         required
                       />
                     </div>
@@ -482,45 +483,31 @@ export default function LoginPage() {
                 </form>
 
                 {/* 하단 보조 링크 */}
-                {SUPABASE_CONFIGURED ? (
-                  <p className="mt-5 text-xs text-center text-gray-400">
-                    {mode === "signup" ? (
-                      <>
-                        이미 계정이 있으신가요?{" "}
-                        <button
-                          type="button"
-                          onClick={() => switchMode("login")}
-                          className="font-semibold text-[#3E2D9B] hover:underline"
-                        >
-                          로그인
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        계정이 없으신가요?{" "}
-                        <button
-                          type="button"
-                          onClick={() => switchMode("signup")}
-                          className="font-semibold text-[#3E2D9B] hover:underline"
-                        >
-                          회원가입
-                        </button>
-                      </>
-                    )}
-                  </p>
-                ) : (
-                  <div className="mt-5 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 mb-2">테스트 계정</p>
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-400">
-                        <span className="font-semibold text-slate-600">관리자</span> — admin / edumind2024
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        <span className="font-semibold text-slate-600">강사</span> — teacher / howto2024
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <p className="mt-5 text-xs text-center text-gray-400">
+                  {mode === "signup" ? (
+                    <>
+                      이미 계정이 있으신가요?{" "}
+                      <button
+                        type="button"
+                        onClick={() => switchMode("login")}
+                        className="font-semibold text-[#3E2D9B] hover:underline"
+                      >
+                        로그인
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      계정이 없으신가요?{" "}
+                      <button
+                        type="button"
+                        onClick={() => switchMode("signup")}
+                        className="font-semibold text-[#3E2D9B] hover:underline"
+                      >
+                        회원가입
+                      </button>
+                    </>
+                  )}
+                </p>
               </>
             )}
           </div>

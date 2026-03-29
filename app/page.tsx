@@ -279,25 +279,42 @@ export default function Home() {
     setError(null)
     setUsedModel(null)
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120_000)
+
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, mode }),
+        signal: controller.signal,
       })
-      const data = await res.json()
-      if (res.status === 429) {
-        setError(data.error ?? "잠시 후 다시 시도해주세요.")
-        setRetryCountdown(data.retryAfter ?? 30)
-      } else if (!res.ok) {
-        setError(data.error ?? "분석 중 오류가 발생했습니다.")
-      } else {
-        setResult(data.result)
-        setUsedModel(data.model)
+
+      let data: Record<string, unknown> = {}
+      try {
+        data = await res.json()
+      } catch {
+        setError(`응답 파싱 오류 (HTTP ${res.status}). 서버 응답이 올바르지 않습니다.`)
+        return
       }
-    } catch {
-      setError("네트워크 오류가 발생했습니다.")
+
+      if (res.status === 429) {
+        setError(data.error as string ?? "잠시 후 다시 시도해주세요.")
+        setRetryCountdown((data.retryAfter as number) ?? 30)
+      } else if (!res.ok) {
+        setError(data.error as string ?? `분석 중 오류가 발생했습니다. (HTTP ${res.status})`)
+      } else {
+        setResult(data.result as AnalysisResult)
+        setUsedModel(data.model as string)
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("분석 시간이 초과되었습니다 (2분). 잠시 후 다시 시도해주세요.")
+      } else {
+        setError("네트워크 오류가 발생했습니다. Wi-Fi 연결을 확인해주세요.")
+      }
     } finally {
+      clearTimeout(timeoutId)
       setIsAnalyzing(false)
     }
   }

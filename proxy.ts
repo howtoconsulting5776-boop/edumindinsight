@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getSessionFromCookieString } from "@/lib/auth"
 
-export async function proxy(request: NextRequest) {
+async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
 
   // ── Supabase SSR path (when env vars are set) ────────────────────────────
@@ -10,12 +10,23 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
-    return supabaseProxy(request, pathname)
+    try {
+      return await supabaseProxy(request, pathname)
+    } catch (err) {
+      console.error("[proxy] Supabase error, falling back to legacy:", err)
+      // Fall through to legacy auth on Supabase failure
+    }
   }
 
   // ── Legacy cookie-based fallback ─────────────────────────────────────────
   return legacyProxy(request, pathname)
 }
+
+// Named export required by Next.js 16 proxy convention
+export const proxy = proxyHandler
+
+// Default export ensures Next.js adapterFn can call the handler correctly
+export default proxyHandler
 
 // ── Supabase-aware proxy ───────────────────────────────────────────────────
 // Uses getSession() (local cookie read, no network call) for fast route
