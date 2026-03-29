@@ -72,7 +72,7 @@ export default function ManualsPage() {
   const [pdfTags, setPdfTags] = useState("")
   const [pdfUploading, setPdfUploading] = useState(false)
   const [pdfError, setPdfError] = useState("")
-  const [pdfSuccess, setPdfSuccess] = useState<{ fileName: string; chunks: number; characters: number } | null>(null)
+  const [pdfSuccess, setPdfSuccess] = useState<{ fileName: string; chunks: number; characters: number; ocrUsed?: boolean } | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -156,7 +156,7 @@ export default function ManualsPage() {
       const res = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
       const data = await res.json()
       if (!res.ok) { setPdfError(data.error ?? "업로드에 실패했습니다."); return }
-      setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters })
+      setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed })
       setPdfFile(null)
       setPdfTags("")
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -217,6 +217,7 @@ export default function ManualsPage() {
                 <p className="text-green-700 text-sm font-semibold">{pdfSuccess.fileName} 업로드 완료!</p>
                 <p className="text-green-600 text-xs mt-0.5">
                   {pdfSuccess.chunks}개 항목으로 분할 · {pdfSuccess.characters.toLocaleString()}자 추출
+                  {pdfSuccess.ocrUsed && <span className="ml-1 text-blue-600 font-medium">(AI OCR 적용됨)</span>}
                 </p>
               </div>
             </div>

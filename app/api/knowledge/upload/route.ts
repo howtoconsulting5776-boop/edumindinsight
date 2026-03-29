@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { generateText } from "ai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import {
   isSupabaseConfigured,
   createSupabaseAdminClient,
@@ -6,6 +8,37 @@ import {
 } from "@/lib/supabase/server"
 import { getSession } from "@/lib/auth"
 import { addKnowledgeItem } from "@/lib/store"
+
+// Gemini Vision OCR: 스캔 PDF → 텍스트 추출
+async function ocrWithGemini(pdfBase64: string): Promise<string> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
+  if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY가 설정되지 않았습니다.")
+
+  const googleAI = createGoogleGenerativeAI({ apiKey })
+
+  const { text } = await generateText({
+    model: googleAI("gemini-2.0-flash"),
+    maxOutputTokens: 8192,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            data: pdfBase64,
+            mediaType: "application/pdf",
+          },
+          {
+            type: "text",
+            text: "이 PDF 문서의 모든 텍스트를 빠짐없이 그대로 추출해주세요. 표, 목록, 제목 등의 구조를 최대한 유지하고, 추가 설명이나 요약 없이 원문 텍스트만 출력해주세요.",
+          },
+        ],
+      },
+    ],
+  })
+
+  return text ?? ""
+}
 
 async function requireDirectorOrAdmin() {
   if (isSupabaseConfigured()) {
@@ -68,18 +101,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "파일 크기는 10MB 이하여야 합니다." }, { status: 400 })
     }
 
-    // PDF → Buffer → 텍스트 추출
+    // PDF → Buffer
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // pdf-parse는 require()로 가져와야 Next.js 빌드에서 정상 동작
+    // 1단계: pdf-parse로 텍스트 추출 시도 (일반 PDF)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParse = require("pdf-parse")
-    const parsed = await pdfParse(buffer)
-    const rawText: string = parsed.text ?? ""
+    let rawText = ""
+    let ocrUsed = false
+
+    try {
+      const parsed = await pdfParse(buffer)
+      rawText = parsed.text ?? ""
+    } catch {
+      // pdf-parse 실패 시 OCR로 폴백
+    }
+
+    // 2단계: 텍스트가 너무 적으면 Gemini Vision OCR로 폴백 (스캔 PDF)
+    if (rawText.trim().length < 100) {
+      try {
+        const pdfBase64 = buffer.toString("base64")
+        rawText = await ocrWithGemini(pdfBase64)
+        ocrUsed = true
+      } catch (ocrErr) {
+        const ocrMsg = ocrErr instanceof Error ? ocrErr.message : "OCR 실패"
+        return NextResponse.json(
+          { error: `텍스트 추출에 실패했습니다. (OCR 오류: ${ocrMsg})` },
+          { status: 500 }
+        )
+      }
+    }
 
     if (!rawText.trim()) {
-      return NextResponse.json({ error: "PDF에서 텍스트를 추출할 수 없습니다. 이미지 기반 PDF는 지원하지 않습니다." }, { status: 400 })
+      return NextResponse.json({ error: "PDF에서 텍스트를 추출할 수 없습니다." }, { status: 400 })
     }
 
     const baseName = file.name.replace(/\.pdf$/i, "")
@@ -129,6 +184,7 @@ export async function POST(req: NextRequest) {
       fileName: file.name,
       chunks: chunks.length,
       characters: rawText.length,
+      ocrUsed,
       ids: createdItems,
     })
   } catch (err) {
