@@ -172,8 +172,14 @@ export default function LoginPage() {
     if (!res.ok) { setError(data.error ?? "회원가입에 실패했습니다."); return }
 
     if (data.autoLogin) {
-      // 자동 로그인 성공 → 역할에 따라 이동
-      router.push(signupRole === "director" ? "/admin" : "/")
+      const dest = (data.role ?? signupRole) === "director" ? "/admin" : "/"
+      router.push(dest)
+      return
+    }
+
+    if (data.needsEmailVerification) {
+      setMode("signup_done")
+      setError("")
       return
     }
 
