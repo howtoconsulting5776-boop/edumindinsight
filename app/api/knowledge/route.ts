@@ -92,40 +92,45 @@ export async function POST(req: NextRequest) {
   if (isSupabaseConfigured()) {
     const db = createSupabaseAdminClient()
 
-    // Build insert object — only include optional columns if they exist in the schema
-    // (situation/response/outcome may not be present in older schema deployments)
-    const insertData: Record<string, unknown> = {
-      category,
-      title,
-      content,
-      priority,
-      tags: parsedTags,
-      academy_id: profile?.academyId ?? null,
-    }
-    if (situation != null) insertData.situation = situation
-    if (response  != null) insertData.response  = response
-    if (outcome   != null) insertData.outcome   = outcome
+    // Progressively strip columns not present in the schema until the insert succeeds.
+    // Some deployments may not have tags/situation/response/outcome columns.
+    const isSchemaError = (e: { message?: string; code?: string }) =>
+      e.message?.includes("schema cache") ||
+      e.message?.includes("Could not find") ||
+      e.code === "PGRST204"
 
-    const { data, error } = await db
-      .from("knowledge_base")
-      .insert(insertData)
-      .select()
-      .single()
+    const attempts: Record<string, unknown>[] = [
+      // Attempt 1 — all desired columns
+      {
+        category, title, content, priority,
+        tags: parsedTags,
+        situation: situation ?? null,
+        response: response ?? null,
+        outcome: outcome ?? null,
+        academy_id: profile?.academyId ?? null,
+      },
+      // Attempt 2 — drop situation/response/outcome
+      { category, title, content, priority, tags: parsedTags, academy_id: profile?.academyId ?? null },
+      // Attempt 3 — drop tags too
+      { category, title, content, priority, academy_id: profile?.academyId ?? null },
+      // Attempt 4 — absolute minimum (no academy_id either, in case that's also missing)
+      { category, title, content, priority },
+    ]
 
-    if (error) {
-      // Column not found → retry without optional columns
-      if (error.message?.includes("schema cache") || error.code === "PGRST204") {
-        const { data: data2, error: error2 } = await db
-          .from("knowledge_base")
-          .insert({ category, title, content, priority, tags: parsedTags, academy_id: profile?.academyId ?? null })
-          .select()
-          .single()
-        if (error2) return NextResponse.json({ error: error2.message }, { status: 500 })
-        return NextResponse.json({ item: normalize(data2) }, { status: 201 })
+    for (const insertData of attempts) {
+      const { data, error } = await db
+        .from("knowledge_base")
+        .insert(insertData)
+        .select()
+        .single()
+      if (!error) return NextResponse.json({ item: normalize(data) }, { status: 201 })
+      if (!isSchemaError(error)) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      // schema error → try next attempt with fewer columns
     }
-    return NextResponse.json({ item: normalize(data) }, { status: 201 })
+
+    return NextResponse.json({ error: "지식베이스 테이블 스키마가 맞지 않습니다. Supabase SQL Editor에서 supabase-schema-v2.sql을 실행해주세요." }, { status: 500 })
   }
 
   const newItem = addKnowledgeItem({ category, title, content, priority, tags: parsedTags, situation, response, outcome })

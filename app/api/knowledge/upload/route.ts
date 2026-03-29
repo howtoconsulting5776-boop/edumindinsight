@@ -150,17 +150,32 @@ async function saveToKnowledgeBase(
 
   if (isSupabase) {
     const db = createSupabaseAdminClient()
+
+    const isSchemaErr = (e: { message?: string; code?: string }) =>
+      e.message?.includes("schema cache") ||
+      e.message?.includes("Could not find") ||
+      e.code === "PGRST204"
+
     for (let i = 0; i < chunks.length; i++) {
       const title = chunks.length === 1 ? baseName : `${baseName} (${i + 1}/${chunks.length})`
-      const { data, error } = await db.from("knowledge_base").insert({
-        category: "manual",
-        title,
-        content: chunks[i],
-        priority,
-        tags: parsedTags,
-        academy_id: profile?.academyId ?? null,
-      }).select("id").single()
-      if (!error && data) createdItems.push(data.id)
+      const base = { category: "manual", title, content: chunks[i], priority }
+
+      // Try with optional columns first, fall back to minimal columns
+      const attempts = [
+        { ...base, tags: parsedTags, academy_id: profile?.academyId ?? null },
+        { ...base, academy_id: profile?.academyId ?? null },
+        base,
+      ]
+
+      for (const insertData of attempts) {
+        const { data, error } = await db
+          .from("knowledge_base")
+          .insert(insertData)
+          .select("id")
+          .single()
+        if (!error && data) { createdItems.push(data.id); break }
+        if (error && !isSchemaErr(error)) break // real error, stop trying
+      }
     }
   } else {
     for (let i = 0; i < chunks.length; i++) {
