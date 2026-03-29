@@ -159,11 +159,6 @@ export default async function AdminDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">지식 대시보드</h1>
             <p className="text-sm text-gray-500">
               RAG 지식베이스 현황을 한눈에 확인하세요
-              {isSupabaseConfigured() && (
-                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600 border border-green-100">
-                  Supabase 연동됨
-                </span>
-              )}
             </p>
           </div>
         </div>
