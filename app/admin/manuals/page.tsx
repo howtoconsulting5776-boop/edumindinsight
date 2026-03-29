@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { createSupabaseBrowserClient } from "@/lib/supabase/client"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   BookOpen01Icon,
@@ -149,13 +150,47 @@ export default function ManualsPage() {
     setPdfError("")
     setPdfSuccess(null)
     try {
-      const fd = new FormData()
-      fd.append("file", pdfFile)
-      fd.append("priority", pdfPriority)
-      fd.append("tags", pdfTags)
-      const res = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
+      const supabase = createSupabaseBrowserClient()
+
+      // 1단계: Supabase Storage에 직접 업로드 (Vercel body 제한 우회)
+      const storagePath = `pdfs/${Date.now()}_${pdfFile.name.replace(/\s+/g, "_")}`
+      const { error: uploadErr } = await supabase.storage
+        .from("pdf-uploads")
+        .upload(storagePath, pdfFile, { contentType: "application/pdf", upsert: false })
+
+      if (uploadErr) {
+        // Storage 버킷이 없을 경우 multipart 폴백
+        if (uploadErr.message?.includes("Bucket not found") || uploadErr.message?.includes("bucket")) {
+          const fd = new FormData()
+          fd.append("file", pdfFile)
+          fd.append("priority", pdfPriority)
+          fd.append("tags", pdfTags)
+          const r = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
+          const d = await r.json()
+          if (!r.ok) { setPdfError(d.error ?? "업로드에 실패했습니다."); return }
+          setPdfSuccess({ fileName: d.fileName, chunks: d.chunks, characters: d.characters, ocrUsed: d.ocrUsed })
+          setPdfFile(null); setPdfTags("")
+          if (fileInputRef.current) fileInputRef.current.value = ""
+          fetchItems(); return
+        }
+        setPdfError(`Storage 업로드 실패: ${uploadErr.message}`)
+        return
+      }
+
+      // 2단계: API에 경로 전달 → 텍스트 추출 + 지식베이스 저장
+      const res = await fetch("/api/knowledge/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storagePath,
+          originalName: pdfFile.name,
+          priority: pdfPriority,
+          tags: pdfTags,
+        }),
+      })
       const data = await res.json()
-      if (!res.ok) { setPdfError(data.error ?? "업로드에 실패했습니다."); return }
+      if (!res.ok) { setPdfError(data.error ?? "처리에 실패했습니다."); return }
+
       setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed })
       setPdfFile(null)
       setPdfTags("")

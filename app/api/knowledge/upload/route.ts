@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-
-export const maxDuration = 60 // Vercel 함수 최대 실행시간 60초 (PDF 처리/OCR 대응)
-export const runtime = "nodejs"
 import { generateText } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import {
@@ -11,6 +8,9 @@ import {
 } from "@/lib/supabase/server"
 import { getSession } from "@/lib/auth"
 import { addKnowledgeItem } from "@/lib/store"
+
+export const maxDuration = 60
+export const runtime = "nodejs"
 
 // Gemini Vision OCR: 스캔 PDF → 텍스트 추출
 async function ocrWithGemini(pdfBase64: string): Promise<string> {
@@ -74,7 +74,6 @@ function chunkText(text: string, maxChunkSize = 2000): string[] {
   }
   if (current.trim()) chunks.push(current.trim())
 
-  // 청크가 없으면 maxChunkSize 단위로 분할
   if (chunks.length === 0 && text.trim()) {
     for (let i = 0; i < text.length; i += maxChunkSize) {
       chunks.push(text.slice(i, i + maxChunkSize).trim())
@@ -84,31 +83,66 @@ function chunkText(text: string, maxChunkSize = 2000): string[] {
   return chunks.filter(Boolean)
 }
 
+// ── POST: multipart (소형) 또는 JSON { storagePath } (Supabase Storage 경유) ──
 export async function POST(req: NextRequest) {
   try {
     const { error: authError, profile } = await requireDirectorOrAdmin()
     if (authError) return authError
 
-    const formData = await req.formData()
-    const file = formData.get("file") as File | null
-    const priority = (formData.get("priority") as string) || "medium"
-    const tags = (formData.get("tags") as string) || ""
+    const contentType = req.headers.get("content-type") ?? ""
 
-    if (!file) {
-      return NextResponse.json({ error: "PDF 파일을 선택해주세요." }, { status: 400 })
-    }
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      return NextResponse.json({ error: "PDF 파일만 업로드 가능합니다." }, { status: 400 })
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: "파일 크기는 50MB 이하여야 합니다." }, { status: 400 })
+    let buffer: Buffer
+    let fileName: string
+    let priority = "medium"
+    let tags = ""
+
+    if (contentType.includes("application/json")) {
+      // ── 경로 2: 클라이언트가 Supabase Storage에 업로드 후 경로를 전달 ──
+      const body = await req.json()
+      const { storagePath, originalName, priority: p, tags: t } = body
+
+      if (!storagePath) {
+        return NextResponse.json({ error: "storagePath가 필요합니다." }, { status: 400 })
+      }
+
+      priority = p ?? "medium"
+      tags = t ?? ""
+      fileName = originalName ?? storagePath.split("/").pop() ?? "document.pdf"
+
+      const db = createSupabaseAdminClient()
+      const { data, error: dlErr } = await db.storage
+        .from("pdf-uploads")
+        .download(storagePath)
+
+      if (dlErr || !data) {
+        return NextResponse.json({ error: `Storage에서 파일을 불러올 수 없습니다: ${dlErr?.message}` }, { status: 500 })
+      }
+
+      buffer = Buffer.from(await data.arrayBuffer())
+
+      // 처리 완료 후 Storage에서 파일 삭제 (공간 절약)
+      await db.storage.from("pdf-uploads").remove([storagePath])
+
+    } else {
+      // ── 경로 1: 직접 multipart 업로드 (소형 파일, 개발 환경용) ──
+      const formData = await req.formData()
+      const file = formData.get("file") as File | null
+      priority = (formData.get("priority") as string) || "medium"
+      tags = (formData.get("tags") as string) || ""
+
+      if (!file) {
+        return NextResponse.json({ error: "PDF 파일을 선택해주세요." }, { status: 400 })
+      }
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        return NextResponse.json({ error: "PDF 파일만 업로드 가능합니다." }, { status: 400 })
+      }
+
+      fileName = file.name
+      const arrayBuffer = await file.arrayBuffer()
+      buffer = Buffer.from(arrayBuffer)
     }
 
-    // PDF → Buffer
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    // 1단계: pdf-parse로 텍스트 추출 시도 (일반 PDF)
+    // ── 텍스트 추출 ──────────────────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParse = require("pdf-parse")
     let rawText = ""
@@ -118,10 +152,9 @@ export async function POST(req: NextRequest) {
       const parsed = await pdfParse(buffer)
       rawText = parsed.text ?? ""
     } catch {
-      // pdf-parse 실패 시 OCR로 폴백
+      // pdf-parse 실패 시 OCR 폴백
     }
 
-    // 2단계: 텍스트가 너무 적으면 Gemini Vision OCR로 폴백 (스캔 PDF)
     if (rawText.trim().length < 100) {
       try {
         const pdfBase64 = buffer.toString("base64")
@@ -140,7 +173,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "PDF에서 텍스트를 추출할 수 없습니다." }, { status: 400 })
     }
 
-    const baseName = file.name.replace(/\.pdf$/i, "")
+    // ── 지식베이스 저장 ───────────────────────────────────────────────────────
+    const baseName = fileName.replace(/\.pdf$/i, "")
     const parsedTags: string[] = tags
       .split(",")
       .map((t) => t.trim())
@@ -184,7 +218,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      fileName: file.name,
+      fileName,
       chunks: chunks.length,
       characters: rawText.length,
       ocrUsed,
