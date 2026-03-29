@@ -91,24 +91,40 @@ export async function POST(req: NextRequest) {
 
   if (isSupabaseConfigured()) {
     const db = createSupabaseAdminClient()
+
+    // Build insert object — only include optional columns if they exist in the schema
+    // (situation/response/outcome may not be present in older schema deployments)
+    const insertData: Record<string, unknown> = {
+      category,
+      title,
+      content,
+      priority,
+      tags: parsedTags,
+      academy_id: profile?.academyId ?? null,
+    }
+    if (situation != null) insertData.situation = situation
+    if (response  != null) insertData.response  = response
+    if (outcome   != null) insertData.outcome   = outcome
+
     const { data, error } = await db
       .from("knowledge_base")
-      .insert({
-        category,
-        title,
-        content,
-        priority,
-        tags: parsedTags,
-        situation: situation ?? null,
-        response: response ?? null,
-        outcome: outcome ?? null,
-        // Associate with director's academy (null = global, admin only)
-        academy_id: profile?.academyId ?? null,
-      })
+      .insert(insertData)
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      // Column not found → retry without optional columns
+      if (error.message?.includes("schema cache") || error.code === "PGRST204") {
+        const { data: data2, error: error2 } = await db
+          .from("knowledge_base")
+          .insert({ category, title, content, priority, tags: parsedTags, academy_id: profile?.academyId ?? null })
+          .select()
+          .single()
+        if (error2) return NextResponse.json({ error: error2.message }, { status: 500 })
+        return NextResponse.json({ item: normalize(data2) }, { status: 201 })
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
     return NextResponse.json({ item: normalize(data) }, { status: 201 })
   }
 
