@@ -155,26 +155,25 @@ export default function LoginPage() {
       resolvedAcademyName = foundAcademy.name
     }
 
-    const supabase = createSupabaseBrowserClient()
-    const { error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
-          role: signupRole,
-          academy_id: academyId,
-          academy_name: resolvedAcademyName,
-        },
-      },
+    // 서버 API를 통해 이메일 인증 없이 즉시 가입
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        password,
+        full_name: name,
+        role: signupRole,
+        academy_id: academyId,
+        academy_name: resolvedAcademyName,
+      }),
     })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error ?? "회원가입에 실패했습니다."); return }
 
-    if (authError) {
-      setError(
-        authError.message === "User already registered"
-          ? "이미 등록된 이메일입니다. 로그인을 시도해보세요."
-          : authError.message
-      )
+    if (data.autoLogin) {
+      // 자동 로그인 성공 → 역할에 따라 이동
+      router.push(signupRole === "director" ? "/admin" : "/")
       return
     }
 
