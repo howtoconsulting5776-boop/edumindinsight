@@ -35,25 +35,35 @@ export async function POST(req: NextRequest) {
     })
 
     if (createErr) {
-      const msg =
-        createErr.message.includes("already") || createErr.message.includes("registered")
-          ? "이미 등록된 이메일입니다. 로그인을 시도해보세요."
-          : createErr.message
+      console.error("[signup] createUser error:", createErr.message)
+      let msg = createErr.message
+      if (msg.includes("already") || msg.includes("registered") || msg.includes("duplicate")) {
+        msg = "이미 등록된 이메일입니다. 로그인을 시도해보세요."
+      } else if (msg.includes("Database error") || msg.includes("database")) {
+        // 트리거 오류 — 유저는 생성 안 됐을 수 있음. 재시도 안내
+        msg = "서버 오류가 발생했습니다. Supabase 스키마 설정을 확인해주세요. (Database error)"
+      } else if (msg.includes("password")) {
+        msg = "비밀번호는 최소 6자 이상이어야 합니다."
+      }
       return NextResponse.json({ error: msg }, { status: 400 })
     }
 
     // profiles 테이블 수동 upsert (트리거가 실패할 경우 대비)
     if (created?.user) {
-      await admin
-        .from("profiles")
-        .upsert({
-          id: created.user.id,
-          email,
-          full_name: full_name ?? "",
-          role: role ?? "teacher",
-          academy_id: academy_id || null,
-        })
-        .select()
+      try {
+        await admin
+          .from("profiles")
+          .upsert({
+            id: created.user.id,
+            email,
+            full_name: full_name ?? "",
+            role: role ?? "teacher",
+            academy_id: academy_id || null,
+          })
+      } catch (profileErr) {
+        // profiles 테이블이 없어도 계속 진행
+        console.warn("[signup] profile upsert failed:", profileErr)
+      }
     }
 
     // 가입 직후 자동 로그인 (세션 쿠키 설정)

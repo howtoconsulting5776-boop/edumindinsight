@@ -85,31 +85,42 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role, academy_id)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    NEW.raw_user_meta_data->>'full_name',
-    COALESCE(NEW.raw_user_meta_data->>'role', 'teacher'),
-    NULLIF(NEW.raw_user_meta_data->>'academy_id', '')::UUID
-  )
-  ON CONFLICT (id) DO UPDATE
-    SET email      = EXCLUDED.email,
-        full_name  = EXCLUDED.full_name,
-        role       = EXCLUDED.role,
-        academy_id = EXCLUDED.academy_id,
-        updated_at = NOW();
+  -- profiles 테이블이 없거나 오류 발생 시 유저 생성은 계속 진행
+  BEGIN
+    INSERT INTO public.profiles (id, email, full_name, role, academy_id)
+    VALUES (
+      NEW.id,
+      NEW.email,
+      NEW.raw_user_meta_data->>'full_name',
+      COALESCE(NEW.raw_user_meta_data->>'role', 'teacher'),
+      NULLIF(NEW.raw_user_meta_data->>'academy_id', '')::UUID
+    )
+    ON CONFLICT (id) DO UPDATE
+      SET email      = EXCLUDED.email,
+          full_name  = EXCLUDED.full_name,
+          role       = EXCLUDED.role,
+          academy_id = EXCLUDED.academy_id,
+          updated_at = NOW();
+  EXCEPTION WHEN OTHERS THEN
+    -- 트리거 실패 시에도 유저 생성은 성공하도록 무시
+    NULL;
+  END;
 
   -- 학원장(director)이면 academies.owner_id 도 함께 업데이트
-  IF NEW.raw_user_meta_data->>'role' = 'director'
-     AND NEW.raw_user_meta_data->>'academy_id' IS NOT NULL
-  THEN
-    UPDATE public.academies
-      SET owner_id   = NEW.id,
-          updated_at = NOW()
-    WHERE id = (NEW.raw_user_meta_data->>'academy_id')::UUID
-      AND owner_id IS NULL;
-  END IF;
+  BEGIN
+    IF NEW.raw_user_meta_data->>'role' = 'director'
+       AND NEW.raw_user_meta_data->>'academy_id' IS NOT NULL
+       AND NEW.raw_user_meta_data->>'academy_id' != ''
+    THEN
+      UPDATE public.academies
+        SET owner_id   = NEW.id,
+            updated_at = NOW()
+      WHERE id = (NEW.raw_user_meta_data->>'academy_id')::UUID
+        AND owner_id IS NULL;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
 
   RETURN NEW;
 END;
