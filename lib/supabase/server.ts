@@ -42,6 +42,16 @@ export async function createSupabaseServerClient() {
   )
 }
 
+const SERVER_TIMEOUT_MS = 8000
+
+function serverFetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), SERVER_TIMEOUT_MS)
+  return fetch(input as string, { ...(init as RequestInit), signal: controller.signal }).finally(
+    () => clearTimeout(id)
+  )
+}
+
 // ── Supabase admin client (service role — bypasses RLS) ────────────────────
 // Use ONLY in trusted server-side code (API routes, server components).
 export function createSupabaseAdminClient() {
@@ -56,6 +66,7 @@ export function createSupabaseAdminClient() {
 
   return createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: serverFetchWithTimeout },
   })
 }
 

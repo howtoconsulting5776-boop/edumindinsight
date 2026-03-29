@@ -118,7 +118,19 @@ export default function LoginPage() {
   // ── Supabase 로그인 ──────────────────────────────────────────────────────
   async function loginWithSupabase() {
     const supabase = createSupabaseBrowserClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    let authError: { message: string } | null = null
+    try {
+      const result = await supabase.auth.signInWithPassword({ email, password })
+      authError = result.error
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ""
+      if (msg.includes("abort") || msg.includes("timeout") || msg.includes("fetch")) {
+        setError("Supabase 서버에 연결할 수 없습니다. dashboard.supabase.com에서 프로젝트가 일시정지(Paused) 상태인지 확인해주세요.")
+      } else {
+        setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+      }
+      return
+    }
     if (authError) {
       setError(
         authError.message === "Invalid login credentials"
@@ -127,8 +139,8 @@ export default function LoginPage() {
       )
       return
     }
-    const res = await fetch("/api/auth/role")
-    const data = await res.json()
+    const res = await fetch("/api/auth/role").catch(() => null)
+    const data = res ? await res.json().catch(() => ({})) : {}
     const role = data.role ?? "teacher"
     router.push(role === "admin" || role === "director" ? "/admin" : "/")
     router.refresh()
