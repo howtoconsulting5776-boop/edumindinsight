@@ -50,6 +50,7 @@ function getNavItems(role: UserRole) {
     { href: "/admin/cases",     label: "모범 사례 학습",   icon: CheckmarkBadge01Icon },
     { href: "/admin/persona",   label: "AI 페르소나 설정", icon: AiBrain01Icon },
     { href: "/admin/manage",    label: "선생님 관리",      icon: Group01Icon },
+    { href: "/admin/setup",     label: "DB 초기 설정",     icon: Settings01Icon },
   ]
 
   if (role === "admin") {
