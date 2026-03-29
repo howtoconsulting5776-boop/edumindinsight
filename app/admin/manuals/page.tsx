@@ -256,7 +256,7 @@ export default function ManualsPage() {
               ) : (
                 <>
                   <p className="text-sm font-semibold text-gray-700">PDF 파일을 드래그하거나 클릭하여 선택</p>
-                  <p className="text-xs text-gray-400">최대 10MB · PDF만 지원</p>
+                  <p className="text-xs text-gray-400">최대 50MB · PDF만 지원</p>
                 </>
               )}
             </div>

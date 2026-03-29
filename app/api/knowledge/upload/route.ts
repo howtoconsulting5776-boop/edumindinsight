@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+
+export const maxDuration = 60 // Vercel 함수 최대 실행시간 60초 (PDF 처리/OCR 대응)
+export const runtime = "nodejs"
 import { generateText } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import {
@@ -97,8 +100,8 @@ export async function POST(req: NextRequest) {
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json({ error: "PDF 파일만 업로드 가능합니다." }, { status: 400 })
     }
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "파일 크기는 10MB 이하여야 합니다." }, { status: 400 })
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: "파일 크기는 50MB 이하여야 합니다." }, { status: 400 })
     }
 
     // PDF → Buffer
