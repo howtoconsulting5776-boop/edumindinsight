@@ -352,7 +352,7 @@ export default function LoginPage() {
                 {/* ── 회원가입 역할 선택 ─────────────────────────── */}
                 {mode === "signup" && (
                   <div className="mb-5">
-                    <Label className="text-sm font-semibold text-gray-700 block mb-2">역할 선택</Label>
+                    <Label className="text-sm font-semibold text-gray-700 block mb-2">직책</Label>
                     <div className="grid grid-cols-2 gap-3">
                       {(["director", "teacher"] as SignupRole[]).map((r) => {
                         const isActive = signupRole === r
