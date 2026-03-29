@@ -117,7 +117,7 @@ export default function PersonaPage() {
     )
   }
 
-  const activeTone = TONES.find((t) => t.value === settings.tone)!
+  const activeTone = TONES.find((t) => t.value === settings.tone) ?? TONES[0]
 
   return (
     <div className="max-w-2xl mx-auto">
