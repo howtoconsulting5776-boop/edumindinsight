@@ -12,6 +12,7 @@ import {
   Upload01Icon,
   FileIcon,
   CheckmarkCircle01Icon,
+  Image01Icon,
 } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,16 +67,25 @@ export default function ManualsPage() {
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
   const [tags, setTags] = useState("")
 
-  // PDF upload state
-  const [showPdfUpload, setShowPdfUpload] = useState(false)
-  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  // 파일 업로드 state (PDF + 이미지 통합)
+  const [showFileUpload, setShowFileUpload] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadFileType, setUploadFileType] = useState<"pdf" | "image" | null>(null)
   const [pdfPriority, setPdfPriority] = useState<"low" | "medium" | "high">("medium")
   const [pdfTags, setPdfTags] = useState("")
   const [pdfUploading, setPdfUploading] = useState(false)
   const [pdfError, setPdfError] = useState("")
-  const [pdfSuccess, setPdfSuccess] = useState<{ fileName: string; chunks: number; characters: number; ocrUsed?: boolean } | null>(null)
+  const [pdfSuccess, setPdfSuccess] = useState<{ fileName: string; chunks: number; characters: number; ocrUsed?: boolean; fileType?: string } | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"]
+  function detectFileType(file: File): "pdf" | "image" | null {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+    if (ext === "pdf") return "pdf"
+    if (IMAGE_EXTS.includes(ext)) return "image"
+    return null
+  }
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -129,47 +139,54 @@ export default function ManualsPage() {
   function handleFileChange(file: File | null) {
     setPdfError("")
     setPdfSuccess(null)
-    if (!file) { setPdfFile(null); return }
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setPdfError("PDF 파일만 업로드 가능합니다.")
-      setPdfFile(null)
+    if (!file) { setUploadFile(null); setUploadFileType(null); return }
+    const ft = detectFileType(file)
+    if (!ft) {
+      setPdfError("PDF 또는 이미지 파일(JPG, PNG, WebP, GIF)만 업로드 가능합니다.")
+      setUploadFile(null); setUploadFileType(null)
       return
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setPdfError("파일 크기는 10MB 이하여야 합니다.")
-      setPdfFile(null)
+    if (file.size > 50 * 1024 * 1024) {
+      setPdfError("파일 크기는 50MB 이하여야 합니다.")
+      setUploadFile(null); setUploadFileType(null)
       return
     }
-    setPdfFile(file)
+    setUploadFile(file)
+    setUploadFileType(ft)
   }
 
   async function handlePdfUpload(e: React.FormEvent) {
     e.preventDefault()
-    if (!pdfFile) { setPdfError("PDF 파일을 선택해주세요."); return }
+    if (!uploadFile) { setPdfError("파일을 선택해주세요."); return }
     setPdfUploading(true)
     setPdfError("")
     setPdfSuccess(null)
     try {
       const supabase = createSupabaseBrowserClient()
+      const isImage = uploadFileType === "image"
+      const mimeType = isImage
+        ? (uploadFile.type || "image/jpeg")
+        : "application/pdf"
+      const folder = isImage ? "images" : "pdfs"
+      const storagePath = `${folder}/${Date.now()}_${uploadFile.name.replace(/\s+/g, "_")}`
 
-      // 1단계: Supabase Storage에 직접 업로드 (Vercel body 제한 우회)
-      const storagePath = `pdfs/${Date.now()}_${pdfFile.name.replace(/\s+/g, "_")}`
+      // 1단계: Supabase Storage에 직접 업로드
       const { error: uploadErr } = await supabase.storage
         .from("pdf-uploads")
-        .upload(storagePath, pdfFile, { contentType: "application/pdf", upsert: false })
+        .upload(storagePath, uploadFile, { contentType: mimeType, upsert: false })
 
       if (uploadErr) {
-        // Storage 버킷이 없을 경우 multipart 폴백
+        // Storage 버킷 없을 경우 multipart 폴백
         if (uploadErr.message?.includes("Bucket not found") || uploadErr.message?.includes("bucket")) {
           const fd = new FormData()
-          fd.append("file", pdfFile)
+          fd.append("file", uploadFile)
           fd.append("priority", pdfPriority)
           fd.append("tags", pdfTags)
           const r = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
           const d = await r.json()
-          if (!r.ok) { setPdfError(d.error ?? "업로드에 실패했습니다."); return }
-          setPdfSuccess({ fileName: d.fileName, chunks: d.chunks, characters: d.characters, ocrUsed: d.ocrUsed })
-          setPdfFile(null); setPdfTags("")
+          if (!r.ok) { setPdfError(d.error ?? "업로드 실패"); return }
+          setPdfSuccess({ fileName: d.fileName, chunks: d.chunks, characters: d.characters, ocrUsed: d.ocrUsed, fileType: d.fileType })
+          setUploadFile(null); setUploadFileType(null); setPdfTags("")
           if (fileInputRef.current) fileInputRef.current.value = ""
           fetchItems(); return
         }
@@ -177,22 +194,24 @@ export default function ManualsPage() {
         return
       }
 
-      // 2단계: API에 경로 전달 → 텍스트 추출 + 지식베이스 저장
+      // 2단계: API에 경로 전달 → 내용 추출 + 지식베이스 저장
       const res = await fetch("/api/knowledge/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           storagePath,
-          originalName: pdfFile.name,
+          originalName: uploadFile.name,
           priority: pdfPriority,
           tags: pdfTags,
+          bucket: "pdf-uploads",
         }),
       })
       const data = await res.json()
       if (!res.ok) { setPdfError(data.error ?? "처리에 실패했습니다."); return }
 
-      setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed })
-      setPdfFile(null)
+      setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed, fileType: data.fileType })
+      setUploadFile(null)
+      setUploadFileType(null)
       setPdfTags("")
       if (fileInputRef.current) fileInputRef.current.value = ""
       fetchItems()
@@ -218,15 +237,15 @@ export default function ManualsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => { setShowPdfUpload(!showPdfUpload); setShowForm(false) }}
+            onClick={() => { setShowFileUpload(!showFileUpload); setShowForm(false) }}
             variant="outline"
             className="rounded-2xl shadow-sm flex items-center gap-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-purple-50"
           >
             <HIcon icon={Upload01Icon} size={16} primary="#3E2D9B" secondary="#C4BEF0" />
-            <span className="hidden sm:inline">PDF 업로드</span>
+            <span className="hidden sm:inline">파일 업로드</span>
           </Button>
           <Button
-            onClick={() => { setShowForm(!showForm); setShowPdfUpload(false) }}
+            onClick={() => { setShowForm(!showForm); setShowFileUpload(false) }}
             className="rounded-2xl shadow-md flex items-center gap-2"
             style={{ background: "#3E2D9B" }}
           >
@@ -236,14 +255,16 @@ export default function ManualsPage() {
         </div>
       </div>
 
-      {/* PDF Upload form */}
-      {showPdfUpload && (
+      {/* 파일 업로드 폼 (PDF + 이미지) */}
+      {showFileUpload && (
         <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
           <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
             <HIcon icon={Upload01Icon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
-            PDF 파일 업로드
+            파일 업로드 (PDF · 이미지)
           </h2>
-          <p className="text-sm text-gray-500 mb-6">PDF를 업로드하면 텍스트를 자동 추출하여 AI 지식베이스에 등록합니다.</p>
+          <p className="text-sm text-gray-500 mb-6">
+            PDF 또는 이미지를 업로드하면 AI가 내용을 분석하여 지식베이스에 자동 등록합니다.
+          </p>
 
           {pdfSuccess && (
             <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 border border-green-100 mb-5">
@@ -251,8 +272,12 @@ export default function ManualsPage() {
               <div>
                 <p className="text-green-700 text-sm font-semibold">{pdfSuccess.fileName} 업로드 완료!</p>
                 <p className="text-green-600 text-xs mt-0.5">
-                  {pdfSuccess.chunks}개 항목으로 분할 · {pdfSuccess.characters.toLocaleString()}자 추출
-                  {pdfSuccess.ocrUsed && <span className="ml-1 text-blue-600 font-medium">(AI OCR 적용됨)</span>}
+                  {pdfSuccess.chunks}개 항목 · {pdfSuccess.characters.toLocaleString()}자 추출
+                  {pdfSuccess.ocrUsed && (
+                    <span className="ml-1 text-blue-600 font-medium">
+                      {pdfSuccess.fileType === "image" ? "(AI Vision 분석됨)" : "(AI OCR 적용됨)"}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -272,33 +297,44 @@ export default function ManualsPage() {
               className={`cursor-pointer border-2 border-dashed rounded-2xl p-8 flex flex-col items-center gap-3 transition-colors ${
                 dragOver
                   ? "border-[#3E2D9B] bg-purple-50"
-                  : pdfFile
+                  : uploadFile
                   ? "border-green-300 bg-green-50"
                   : "border-slate-200 bg-slate-50 hover:border-[#3E2D9B] hover:bg-purple-50"
               }`}
             >
               <HIcon
-                icon={pdfFile ? FileIcon : Upload01Icon}
+                icon={uploadFile ? (uploadFileType === "image" ? Image01Icon : FileIcon) : Upload01Icon}
                 size={32}
-                primary={pdfFile ? "#10B981" : "#3E2D9B"}
-                secondary={pdfFile ? "#6EE7B7" : "#C4BEF0"}
+                primary={uploadFile ? "#10B981" : "#3E2D9B"}
+                secondary={uploadFile ? "#6EE7B7" : "#C4BEF0"}
               />
-              {pdfFile ? (
+              {uploadFile ? (
                 <>
-                  <p className="text-sm font-semibold text-gray-800">{pdfFile.name}</p>
-                  <p className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(0)} KB</p>
+                  <p className="text-sm font-semibold text-gray-800">{uploadFile.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {uploadFileType === "image" ? "🖼️ 이미지" : "📄 PDF"} · {(uploadFile.size / 1024).toFixed(0)} KB
+                  </p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-semibold text-gray-700">PDF 파일을 드래그하거나 클릭하여 선택</p>
-                  <p className="text-xs text-gray-400">최대 50MB · PDF만 지원</p>
+                  <p className="text-sm font-semibold text-gray-700">파일을 드래그하거나 클릭하여 선택</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <HIcon icon={FileIcon} size={13} primary="#9CA3AF" secondary="#D1D5DB" /> PDF
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <HIcon icon={Image01Icon} size={13} primary="#9CA3AF" secondary="#D1D5DB" /> JPG · PNG · WebP · GIF
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400">최대 50MB</p>
                 </>
               )}
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,application/pdf"
+              accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/gif,image/heic"
               className="hidden"
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
             />
@@ -343,16 +379,18 @@ export default function ManualsPage() {
             <div className="flex gap-3 pt-1">
               <Button
                 type="submit"
-                disabled={pdfUploading || !pdfFile}
+                disabled={pdfUploading || !uploadFile}
                 className="flex-1 h-11 rounded-2xl font-semibold"
                 style={{ background: "#3E2D9B" }}
               >
-                {pdfUploading ? "추출 중..." : "업로드 & 학습"}
+                {pdfUploading
+                  ? (uploadFileType === "image" ? "이미지 분석 중..." : "텍스트 추출 중...")
+                  : "업로드 & AI 학습"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => { setShowPdfUpload(false); setPdfError(""); setPdfSuccess(null); setPdfFile(null) }}
+                onClick={() => { setShowFileUpload(false); setPdfError(""); setPdfSuccess(null); setUploadFile(null); setUploadFileType(null) }}
                 className="flex-1 h-11 rounded-2xl font-semibold border-slate-200"
               >
                 취소

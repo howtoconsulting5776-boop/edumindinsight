@@ -12,6 +12,61 @@ import { addKnowledgeItem } from "@/lib/store"
 export const maxDuration = 60
 export const runtime = "nodejs"
 
+const IMAGE_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  heic: "image/heic",
+  heif: "image/heif",
+}
+
+function getImageMediaType(filename: string): string | null {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? ""
+  return IMAGE_TYPES[ext] ?? null
+}
+
+// Gemini Vision: 이미지 → 상세 설명 추출
+async function analyzeImageWithGemini(
+  imageBase64: string,
+  mediaType: string,
+  fileName: string
+): Promise<string> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
+  if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY가 설정되지 않았습니다.")
+
+  const googleAI = createGoogleGenerativeAI({ apiKey })
+
+  const { text } = await generateText({
+    model: googleAI("gemini-2.0-flash"),
+    maxOutputTokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            image: imageBase64,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            mediaType: mediaType as any,
+          },
+          {
+            type: "text",
+            text: `이 이미지(파일명: ${fileName})를 분석하여 학원 상담 AI가 참고할 수 있도록 다음을 포함한 상세한 설명을 작성해주세요:
+1. 이미지에 있는 모든 텍스트(표, 공지, 안내문 등)를 그대로 옮겨 적어주세요.
+2. 이미지의 전체적인 내용과 맥락을 설명해주세요.
+3. 학원 운영, 상담, 학부모 대응에 관련된 정보가 있다면 특히 자세히 기술해주세요.
+추가 설명 없이 분석 결과만 출력해주세요.`,
+          },
+        ],
+      },
+    ],
+  })
+
+  return text ?? ""
+}
+
 // Gemini Vision OCR: 스캔 PDF → 텍스트 추출
 async function ocrWithGemini(pdfBase64: string): Promise<string> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
@@ -58,7 +113,7 @@ async function requireDirectorOrAdmin() {
   return { error: null, profile: null }
 }
 
-// PDF 텍스트를 지식 항목으로 분할 (최대 2000자 청크)
+// 텍스트를 지식 항목으로 분할 (최대 2000자 청크)
 function chunkText(text: string, maxChunkSize = 2000): string[] {
   const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
   const chunks: string[] = []
@@ -83,7 +138,48 @@ function chunkText(text: string, maxChunkSize = 2000): string[] {
   return chunks.filter(Boolean)
 }
 
-// ── POST: multipart (소형) 또는 JSON { storagePath } (Supabase Storage 경유) ──
+async function saveToKnowledgeBase(
+  chunks: string[],
+  baseName: string,
+  priority: string,
+  parsedTags: string[],
+  profile: { academyId: string | null } | null,
+  isSupabase: boolean
+): Promise<string[]> {
+  const createdItems: string[] = []
+
+  if (isSupabase) {
+    const db = createSupabaseAdminClient()
+    for (let i = 0; i < chunks.length; i++) {
+      const title = chunks.length === 1 ? baseName : `${baseName} (${i + 1}/${chunks.length})`
+      const { data, error } = await db.from("knowledge_base").insert({
+        category: "manual",
+        title,
+        content: chunks[i],
+        priority,
+        tags: parsedTags,
+        academy_id: profile?.academyId ?? null,
+      }).select("id").single()
+      if (!error && data) createdItems.push(data.id)
+    }
+  } else {
+    for (let i = 0; i < chunks.length; i++) {
+      const title = chunks.length === 1 ? baseName : `${baseName} (${i + 1}/${chunks.length})`
+      const item = addKnowledgeItem({
+        category: "manual",
+        title,
+        content: chunks[i],
+        priority: priority as "low" | "medium" | "high",
+        tags: parsedTags,
+      })
+      createdItems.push(item.id)
+    }
+  }
+
+  return createdItems
+}
+
+// ── POST: JSON { storagePath } (Supabase Storage 경유) 또는 multipart ──────
 export async function POST(req: NextRequest) {
   try {
     const { error: authError, profile } = await requireDirectorOrAdmin()
@@ -95,11 +191,12 @@ export async function POST(req: NextRequest) {
     let fileName: string
     let priority = "medium"
     let tags = ""
+    let fileType: "pdf" | "image" = "pdf"
 
     if (contentType.includes("application/json")) {
-      // ── 경로 2: 클라이언트가 Supabase Storage에 업로드 후 경로를 전달 ──
+      // ── 경로 A: Supabase Storage 경유 (대용량 파일) ──────────────────────
       const body = await req.json()
-      const { storagePath, originalName, priority: p, tags: t } = body
+      const { storagePath, originalName, priority: p, tags: t, bucket } = body
 
       if (!storagePath) {
         return NextResponse.json({ error: "storagePath가 필요합니다." }, { status: 400 })
@@ -107,117 +204,104 @@ export async function POST(req: NextRequest) {
 
       priority = p ?? "medium"
       tags = t ?? ""
-      fileName = originalName ?? storagePath.split("/").pop() ?? "document.pdf"
+      fileName = originalName ?? storagePath.split("/").pop() ?? "file"
 
+      const bucketName = bucket ?? "pdf-uploads"
       const db = createSupabaseAdminClient()
-      const { data, error: dlErr } = await db.storage
-        .from("pdf-uploads")
-        .download(storagePath)
+      const { data, error: dlErr } = await db.storage.from(bucketName).download(storagePath)
 
       if (dlErr || !data) {
         return NextResponse.json({ error: `Storage에서 파일을 불러올 수 없습니다: ${dlErr?.message}` }, { status: 500 })
       }
 
       buffer = Buffer.from(await data.arrayBuffer())
+      await db.storage.from(bucketName).remove([storagePath])
 
-      // 처리 완료 후 Storage에서 파일 삭제 (공간 절약)
-      await db.storage.from("pdf-uploads").remove([storagePath])
+      // 파일 타입 판별
+      const imgType = getImageMediaType(fileName)
+      fileType = imgType ? "image" : "pdf"
 
     } else {
-      // ── 경로 1: 직접 multipart 업로드 (소형 파일, 개발 환경용) ──
+      // ── 경로 B: 직접 multipart 업로드 (소형 파일) ────────────────────────
       const formData = await req.formData()
       const file = formData.get("file") as File | null
       priority = (formData.get("priority") as string) || "medium"
       tags = (formData.get("tags") as string) || ""
 
       if (!file) {
-        return NextResponse.json({ error: "PDF 파일을 선택해주세요." }, { status: 400 })
-      }
-      if (!file.name.toLowerCase().endsWith(".pdf")) {
-        return NextResponse.json({ error: "PDF 파일만 업로드 가능합니다." }, { status: 400 })
+        return NextResponse.json({ error: "파일을 선택해주세요." }, { status: 400 })
       }
 
       fileName = file.name
-      const arrayBuffer = await file.arrayBuffer()
-      buffer = Buffer.from(arrayBuffer)
+      const imgType = getImageMediaType(fileName)
+      const isPdf = fileName.toLowerCase().endsWith(".pdf")
+
+      if (!isPdf && !imgType) {
+        return NextResponse.json({ error: "PDF 또는 이미지 파일(JPG, PNG, WebP, GIF)만 업로드 가능합니다." }, { status: 400 })
+      }
+
+      fileType = imgType ? "image" : "pdf"
+      buffer = Buffer.from(await file.arrayBuffer())
     }
 
-    // ── 텍스트 추출 ──────────────────────────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse")
+    // ── 텍스트 / 설명 추출 ────────────────────────────────────────────────
     let rawText = ""
     let ocrUsed = false
 
-    try {
-      const parsed = await pdfParse(buffer)
-      rawText = parsed.text ?? ""
-    } catch {
-      // pdf-parse 실패 시 OCR 폴백
-    }
-
-    if (rawText.trim().length < 100) {
+    if (fileType === "image") {
+      // 이미지 → Gemini Vision으로 내용 분석
+      const imgMediaType = getImageMediaType(fileName) ?? "image/jpeg"
+      const imageBase64 = buffer.toString("base64")
       try {
-        const pdfBase64 = buffer.toString("base64")
-        rawText = await ocrWithGemini(pdfBase64)
+        rawText = await analyzeImageWithGemini(imageBase64, imgMediaType, fileName)
         ocrUsed = true
-      } catch (ocrErr) {
-        const ocrMsg = ocrErr instanceof Error ? ocrErr.message : "OCR 실패"
-        return NextResponse.json(
-          { error: `텍스트 추출에 실패했습니다. (OCR 오류: ${ocrMsg})` },
-          { status: 500 }
-        )
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "이미지 분석 실패"
+        return NextResponse.json({ error: `이미지 분석에 실패했습니다: ${msg}` }, { status: 500 })
+      }
+    } else {
+      // PDF → pdf-parse 먼저, 부족하면 Gemini OCR
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require("pdf-parse")
+      try {
+        const parsed = await pdfParse(buffer)
+        rawText = parsed.text ?? ""
+      } catch { /* OCR 폴백 */ }
+
+      if (rawText.trim().length < 100) {
+        try {
+          rawText = await ocrWithGemini(buffer.toString("base64"))
+          ocrUsed = true
+        } catch (ocrErr) {
+          const ocrMsg = ocrErr instanceof Error ? ocrErr.message : "OCR 실패"
+          return NextResponse.json({ error: `텍스트 추출 실패 (OCR 오류: ${ocrMsg})` }, { status: 500 })
+        }
       }
     }
 
     if (!rawText.trim()) {
-      return NextResponse.json({ error: "PDF에서 텍스트를 추출할 수 없습니다." }, { status: 400 })
+      return NextResponse.json({ error: "파일에서 내용을 추출할 수 없습니다." }, { status: 400 })
     }
 
-    // ── 지식베이스 저장 ───────────────────────────────────────────────────────
-    const baseName = fileName.replace(/\.pdf$/i, "")
-    const parsedTags: string[] = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (!parsedTags.includes("PDF")) parsedTags.push("PDF")
+    // ── 지식베이스 저장 ───────────────────────────────────────────────────
+    const extRegex = /\.(pdf|jpe?g|png|webp|gif|heic|heif)$/i
+    const baseName = fileName.replace(extRegex, "")
+    const parsedTags: string[] = tags.split(",").map((t) => t.trim()).filter(Boolean)
+
+    if (fileType === "image") {
+      if (!parsedTags.includes("이미지")) parsedTags.push("이미지")
+    } else {
+      if (!parsedTags.includes("PDF")) parsedTags.push("PDF")
+    }
 
     const chunks = chunkText(rawText)
-    const createdItems: string[] = []
-
-    if (isSupabaseConfigured()) {
-      const db = createSupabaseAdminClient()
-      for (let i = 0; i < chunks.length; i++) {
-        const title = chunks.length === 1
-          ? baseName
-          : `${baseName} (${i + 1}/${chunks.length})`
-        const { data, error } = await db.from("knowledge_base").insert({
-          category: "manual",
-          title,
-          content: chunks[i],
-          priority,
-          tags: parsedTags,
-          academy_id: profile?.academyId ?? null,
-        }).select("id").single()
-        if (!error && data) createdItems.push(data.id)
-      }
-    } else {
-      for (let i = 0; i < chunks.length; i++) {
-        const title = chunks.length === 1
-          ? baseName
-          : `${baseName} (${i + 1}/${chunks.length})`
-        const item = addKnowledgeItem({
-          category: "manual",
-          title,
-          content: chunks[i],
-          priority: priority as "low" | "medium" | "high",
-          tags: parsedTags,
-        })
-        createdItems.push(item.id)
-      }
-    }
+    const createdItems = await saveToKnowledgeBase(
+      chunks, baseName, priority, parsedTags, profile, isSupabaseConfigured()
+    )
 
     return NextResponse.json({
       success: true,
+      fileType,
       fileName,
       chunks: chunks.length,
       characters: rawText.length,
