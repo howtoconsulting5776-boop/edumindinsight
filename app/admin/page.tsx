@@ -158,7 +158,7 @@ export default async function AdminDashboard() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">지식 대시보드</h1>
             <p className="text-sm text-gray-500">
-              RAG 지식베이스 현황을 한눈에 확인하세요
+              지식베이스 현황을 한눈에 확인하세요
             </p>
           </div>
         </div>
