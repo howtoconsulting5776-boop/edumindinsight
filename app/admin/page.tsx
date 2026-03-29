@@ -327,7 +327,6 @@ export default async function AdminDashboard() {
             className="mt-6 p-4 rounded-2xl border border-purple-100"
             style={{ background: "#F5F3FF" }}
           >
-            <p className="text-xs font-semibold text-[#3E2D9B] mb-1">RAG 주입 상태</p>
             <p className="text-xs text-purple-600 leading-relaxed">
               {highPriority.length}개의 고우선순위 항목이 AI 분석에 우선 반영됩니다.
               현재 페르소나: <strong>{toneLabel}</strong> 모드
