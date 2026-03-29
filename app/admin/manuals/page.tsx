@@ -200,7 +200,17 @@ export default function ManualsPage() {
           fd.append("tags", pdfTags)
           const r = await fetch("/api/knowledge/upload", { method: "POST", body: fd })
           const d = await r.json()
-          if (!r.ok) { setPdfError(d.error ?? "업로드 실패"); return }
+          if (!r.ok) {
+            if (d.error === "DB_SETUP_NEEDED" || r.status === 409) {
+              const sqlRes = await fetch("/api/setup").catch(() => null)
+              const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
+              setDbSetupSql(sqlData.sql ?? "")
+              setDbSetupNeeded(true)
+              return
+            }
+            setPdfError(d.error ?? "업로드 실패")
+            return
+          }
           setPdfSuccess({ fileName: d.fileName, chunks: d.chunks, characters: d.characters, ocrUsed: d.ocrUsed, fileType: d.fileType })
           setUploadFile(null); setUploadFileType(null); setPdfTags("")
           if (fileInputRef.current) fileInputRef.current.value = ""
@@ -223,7 +233,17 @@ export default function ManualsPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) { setPdfError(data.error ?? "처리에 실패했습니다."); return }
+      if (!res.ok) {
+        if (data.error === "DB_SETUP_NEEDED" || res.status === 409) {
+          const sqlRes = await fetch("/api/setup").catch(() => null)
+          const sqlData = sqlRes ? await sqlRes.json().catch(() => ({})) : {}
+          setDbSetupSql(sqlData.sql ?? "")
+          setDbSetupNeeded(true)
+          return
+        }
+        setPdfError(data.error ?? "처리에 실패했습니다.")
+        return
+      }
 
       setPdfSuccess({ fileName: data.fileName, chunks: data.chunks, characters: data.characters, ocrUsed: data.ocrUsed, fileType: data.fileType })
       setUploadFile(null)
@@ -639,7 +659,15 @@ export default function ManualsPage() {
                     try {
                       const res = await fetch("/api/setup", { method: "POST" })
                       const data = await res.json()
-                      if (data.success) setDbSetupDone(true)
+                      if (data.success) {
+                        setDbSetupDone(true)
+                      } else {
+                        // 자동 실행 불가 → SQL 복사 안내
+                        await navigator.clipboard.writeText(dbSetupSql).catch(() => {})
+                        setSqlCopied(true)
+                        setTimeout(() => setSqlCopied(false), 3000)
+                        alert("자동 설정을 사용하려면 Vercel에 DATABASE_URL 또는 SUPABASE_ACCESS_TOKEN을 추가하세요.\n\nSQL이 클립보드에 복사되었습니다.\nSupabase SQL Editor에 붙여넣고 Run을 클릭하세요.")
+                      }
                     } catch { /* ignore */ } finally { setDbSetupRunning(false) }
                   }}
                   disabled={dbSetupRunning}

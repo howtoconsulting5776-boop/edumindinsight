@@ -97,13 +97,13 @@ CREATE TABLE IF NOT EXISTS public.persona_settings (
 
 export async function POST() {
   try {
-    // admin/super admin 만 실행 가능
+    // admin 또는 director 만 실행 가능
     const profile = await getUserProfile()
-    if (!profile || profile.role !== "admin") {
-      return NextResponse.json({ error: "슈퍼 어드민만 실행할 수 있습니다." }, { status: 403 })
+    if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
+      return NextResponse.json({ error: "관리자 또는 학원장만 실행할 수 있습니다." }, { status: 403 })
     }
 
-    // 방법 1: DATABASE_URL / POSTGRES_URL 직접 연결 (Vercel+Supabase 통합 시 자동 제공)
+    // 방법 1: DATABASE_URL / POSTGRES_URL 직접 연결
     const dbUrl =
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
@@ -121,11 +121,46 @@ export async function POST() {
       } catch (pgErr) {
         await client.end().catch(() => {})
         console.error("[setup] pg error:", pgErr)
-        // 실패해도 SQL 반환
       }
     }
 
-    // 방법 2: SQL을 반환하여 사용자가 직접 실행
+    // 방법 2: Supabase Management API (SUPABASE_ACCESS_TOKEN 있을 때)
+    const mgmtToken = process.env.SUPABASE_ACCESS_TOKEN
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
+
+    if (mgmtToken && projectRef) {
+      try {
+        // SQL을 세미콜론 단위로 분리해서 한 문장씩 실행
+        const statements = SETUP_SQL
+          .split(/;\s*\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+
+        for (const stmt of statements) {
+          const res = await fetch(
+            `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${mgmtToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ query: stmt }),
+            }
+          )
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            console.warn("[setup] mgmt API stmt failed:", err)
+          }
+        }
+        return NextResponse.json({ success: true, method: "management_api", message: "데이터베이스 설정이 완료되었습니다." })
+      } catch (mgmtErr) {
+        console.error("[setup] management API error:", mgmtErr)
+      }
+    }
+
+    // 방법 3: SQL을 반환하여 사용자가 직접 실행
     return NextResponse.json({
       success: false,
       method: "manual",

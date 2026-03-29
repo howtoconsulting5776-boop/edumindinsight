@@ -151,6 +151,12 @@ async function saveToKnowledgeBase(
   if (isSupabase) {
     const db = createSupabaseAdminClient()
 
+    const isTableMissing = (e: { message?: string; code?: string }) =>
+      e.code === "42P01" ||
+      e.message?.includes("does not exist") ||
+      e.message?.includes("relation") ||
+      e.message?.includes("undefined_table")
+
     const isSchemaErr = (e: { message?: string; code?: string }) =>
       e.message?.includes("schema cache") ||
       e.message?.includes("Could not find") ||
@@ -167,15 +173,20 @@ async function saveToKnowledgeBase(
         base,
       ]
 
+      let saved = false
       for (const insertData of attempts) {
         const { data, error } = await db
           .from("knowledge_base")
           .insert(insertData)
           .select("id")
           .single()
-        if (!error && data) { createdItems.push(data.id); break }
-        if (error && !isSchemaErr(error)) break // real error, stop trying
+        if (!error && data) { createdItems.push(data.id); saved = true; break }
+        if (error) {
+          if (isTableMissing(error)) throw new Error("DB_SETUP_NEEDED") // 테이블 자체 없음
+          if (!isSchemaErr(error)) break // 다른 실제 오류 → 더 시도 불필요
+        }
       }
+      if (!saved && i === 0) break // 첫 청크 저장 실패시 나머지 청크도 포기
     }
   } else {
     for (let i = 0; i < chunks.length; i++) {
@@ -326,6 +337,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[POST /api/knowledge/upload]", err)
     const msg = err instanceof Error ? err.message : "서버 오류가 발생했습니다."
+    if (msg === "DB_SETUP_NEEDED") {
+      return NextResponse.json({ error: "DB_SETUP_NEEDED" }, { status: 409 })
+    }
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
