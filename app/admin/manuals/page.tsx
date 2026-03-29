@@ -239,6 +239,7 @@ export default function ManualsPage() {
   }
 
   return (
+    <>
     <div className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
@@ -667,5 +668,6 @@ export default function ManualsPage() {
         </div>
       </div>
     )}
+    </>
   )
 }
