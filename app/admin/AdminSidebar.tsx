@@ -126,6 +126,14 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
 
       {/* Nav */}
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <Link
+          href="/"
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-white/60 hover:bg-white/8 hover:text-white transition-all"
+        >
+          <HIcon icon={Home01Icon} size={18} primary="rgba(255,255,255,0.6)" secondary="rgba(255,255,255,0.3)" />
+          분석 페이지로
+        </Link>
         {navItems.map((item) => {
           const isActive = item.href === "/admin"
             ? pathname === "/admin"
@@ -155,14 +163,6 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
 
       {/* Bottom actions */}
       <div className="px-4 pb-6 space-y-1 border-t border-white/10 pt-4">
-        <Link
-          href="/"
-          onClick={() => setOpen(false)}
-          className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-white/60 hover:bg-white/8 hover:text-white transition-all"
-        >
-          <HIcon icon={Home01Icon} size={18} primary="rgba(255,255,255,0.6)" secondary="rgba(255,255,255,0.3)" />
-          분석 페이지로
-        </Link>
         <button
           onClick={handleLogout}
           disabled={loggingOut}
