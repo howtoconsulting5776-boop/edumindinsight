@@ -42,7 +42,7 @@ export async function createSupabaseServerClient() {
   )
 }
 
-const SERVER_TIMEOUT_MS = 8000
+const SERVER_TIMEOUT_MS = 4000
 
 function serverFetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const controller = new AbortController()

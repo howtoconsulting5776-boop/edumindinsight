@@ -86,10 +86,18 @@ async function getDashboardData(): Promise<{
     try {
       const db = createSupabaseAdminClient()
 
-      const [kbRes, logsRes, personaRes] = await Promise.all([
-        db.from("knowledge_base").select("*").order("created_at", { ascending: false }),
-        db.from("counseling_logs").select("id", { count: "exact", head: true }),
-        db.from("persona_settings").select("*").eq("id", 1).single(),
+      // 3초 안에 응답 없으면 포기 (Vercel 함수 타임아웃 방지)
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("DB timeout")), 3000)
+      )
+
+      const [kbRes, logsRes, personaRes] = await Promise.race([
+        Promise.all([
+          db.from("knowledge_base").select("*").order("created_at", { ascending: false }),
+          db.from("counseling_logs").select("id", { count: "exact", head: true }),
+          db.from("persona_settings").select("*").eq("id", 1).single(),
+        ]),
+        timeout,
       ])
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
