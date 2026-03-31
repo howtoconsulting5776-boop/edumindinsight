@@ -260,6 +260,7 @@ function SectionCard({
 export default function Home() {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [goingToDashboard, setGoingToDashboard] = useState(false)
   const [text, setText] = useState("")
   const [mode, setMode] = useState<AnalysisMode>("general")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -410,11 +411,19 @@ export default function Home() {
               {/* Action buttons */}
               <div className="mt-1 flex flex-col gap-2 shrink-0">
                 <button
-                  onClick={() => { window.location.href = "/admin" }}
-                  className="flex items-center gap-1.5 rounded-2xl border border-[#C4BEF0] bg-[#F0EFFB] px-3 py-2 text-xs font-medium text-[#3E2D9B] shadow-sm transition-all hover:bg-[#E8E5FF] hover:border-[#3E2D9B]"
+                  onClick={() => {
+                    setGoingToDashboard(true)
+                    window.location.href = "/admin"
+                  }}
+                  disabled={goingToDashboard}
+                  className="flex items-center gap-1.5 rounded-2xl border border-[#C4BEF0] bg-[#F0EFFB] px-3 py-2 text-xs font-medium text-[#3E2D9B] shadow-sm transition-all hover:bg-[#E8E5FF] hover:border-[#3E2D9B] disabled:opacity-70"
                 >
-                  <HIcon icon={DashboardCircleIcon} size={14} primary="#3E2D9B" secondary="#C4BEF0" />
-                  지식 대시보드
+                  {goingToDashboard ? (
+                    <span className="size-3.5 animate-spin rounded-full border-2 border-[#3E2D9B]/20 border-t-[#3E2D9B]" />
+                  ) : (
+                    <HIcon icon={DashboardCircleIcon} size={14} primary="#3E2D9B" secondary="#C4BEF0" />
+                  )}
+                  {goingToDashboard ? "이동 중..." : "지식 대시보드"}
                 </button>
                 <button
                   onClick={handleLogout}
