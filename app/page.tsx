@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -408,13 +409,13 @@ export default function Home() {
 
               {/* Action buttons */}
               <div className="mt-1 flex flex-col gap-2 shrink-0">
-                <a
-                  href="/admin"
+                <button
+                  onClick={() => { window.location.href = "/admin" }}
                   className="flex items-center gap-1.5 rounded-2xl border border-[#C4BEF0] bg-[#F0EFFB] px-3 py-2 text-xs font-medium text-[#3E2D9B] shadow-sm transition-all hover:bg-[#E8E5FF] hover:border-[#3E2D9B]"
                 >
                   <HIcon icon={DashboardCircleIcon} size={14} primary="#3E2D9B" secondary="#C4BEF0" />
                   지식 대시보드
-                </a>
+                </button>
                 <button
                   onClick={handleLogout}
                   disabled={loggingOut}
