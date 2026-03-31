@@ -48,7 +48,7 @@ function HIcon({
 function getNavItems(role: UserRole) {
   const common = [
     { href: "/admin",           label: "지식 대시보드",    icon: DashboardCircleIcon },
-    { href: "/admin/report",    label: "학원장 보고서",    icon: Analytics01Icon },
+    { href: "/admin/report",    label: "견인지표 보고서",  icon: Analytics01Icon },
     { href: "/admin/students",  label: "학생 관리",        icon: UserGroupIcon },
     { href: "/admin/manuals",   label: "상담 매뉴얼 관리", icon: BookOpen01Icon },
     { href: "/admin/cases",     label: "모범 사례 학습",   icon: CheckmarkBadge01Icon },
