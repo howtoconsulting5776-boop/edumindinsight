@@ -14,6 +14,6 @@ export async function GET() {
     academyId: profile.academyId,
     academyName: profile.academyName,
     academyCode: profile.academyCode,
-    fullName: profile.fullName,
+    displayName: profile.displayName,
   })
 }

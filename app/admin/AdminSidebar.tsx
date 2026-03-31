@@ -17,6 +17,7 @@ import {
   Group01Icon,
   School01Icon,
   Crown02Icon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons"
 import type { UserRole } from "@/lib/supabase/server"
 
@@ -45,7 +46,8 @@ function HIcon({
 // ── Role-aware nav items ────────────────────────────────────────────────────
 function getNavItems(role: UserRole) {
   const common = [
-    { href: "/admin",           label: "지식 대시보드",   icon: DashboardCircleIcon },
+    { href: "/admin",           label: "지식 대시보드",    icon: DashboardCircleIcon },
+    { href: "/admin/students",  label: "학생 관리",        icon: UserGroupIcon },
     { href: "/admin/manuals",   label: "상담 매뉴얼 관리", icon: BookOpen01Icon },
     { href: "/admin/cases",     label: "모범 사례 학습",   icon: CheckmarkBadge01Icon },
     { href: "/admin/persona",   label: "AI 페르소나 설정", icon: AiBrain01Icon },

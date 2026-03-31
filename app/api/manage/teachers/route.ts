@@ -36,7 +36,7 @@ export async function GET() {
     const [academyRes, teachersRes] = await Promise.all([
       db.from("academies").select("id, name, code").eq("id", academyId).single(),
       db.from("profiles")
-        .select("id, email, full_name, created_at")
+        .select("id, email, created_at")
         .eq("academy_id", academyId)
         .eq("role", "teacher")
         .order("created_at", { ascending: true }),

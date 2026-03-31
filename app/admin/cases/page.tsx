@@ -23,7 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { KnowledgeItem } from "@/lib/store"
+interface CaseItem {
+  id: string
+  title: string
+  content: string
+  priority: "low" | "medium" | "high" | "critical"
+  tags: string[]
+  situation?: string
+  response?: string
+  outcome?: string
+  outcomeType?: string
+  subject?: string
+  createdAt: string
+}
 
 function HIcon({
   icon,
@@ -54,8 +66,8 @@ const STEP_STYLE = [
 ]
 
 export default function CasesPage() {
-  const [items, setItems] = useState<KnowledgeItem[]>([])
-  const [filtered, setFiltered] = useState<KnowledgeItem[]>([])
+  const [items, setItems] = useState<CaseItem[]>([])
+  const [filtered, setFiltered] = useState<CaseItem[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -73,11 +85,30 @@ export default function CasesPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/knowledge")
+      let res = await fetch("/api/cases")
+      if (!res.ok) {
+        // 폴백: 구버전 /api/knowledge
+        res = await fetch("/api/knowledge")
+        const data = await res.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cases = (data.items as any[]).filter((i) => i.category === "case").map((i: any) => ({
+          id: i.id, title: i.title, content: i.content, priority: i.priority,
+          tags: i.tags ?? [], situation: i.situation, response: i.response,
+          outcome: i.outcome, createdAt: i.createdAt,
+        }))
+        setItems(cases); setFiltered(cases); return
+      }
       const data = await res.json()
-      const cases = (data.items as KnowledgeItem[]).filter((i) => i.category === "case")
-      setItems(cases)
-      setFiltered(cases)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cases: CaseItem[] = (data.items as any[]).map((i) => ({
+        id: i.id, title: i.title,
+        content: [i.situation, i.response, i.outcome].filter(Boolean).join("\n"),
+        priority: i.priority, tags: i.tags ?? [],
+        situation: i.situation, response: i.response,
+        outcome: i.outcome, outcomeType: i.outcomeType,
+        subject: i.subject, createdAt: i.createdAt,
+      }))
+      setItems(cases); setFiltered(cases)
     } catch {
       setError("데이터를 불러오는 중 오류가 발생했습니다.")
     } finally {
@@ -110,33 +141,32 @@ export default function CasesPage() {
     setError("")
     setSubmitting(true)
     try {
-      const res = await fetch("/api/knowledge", {
+      // v3: /api/cases 우선, 실패 시 /api/knowledge 폴백
+      let res = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: "case",
-          title,
-          content: `상황: ${situation}\n대응: ${response}\n결과: ${outcome}`,
-          priority,
-          tags,
-          situation,
-          response,
-          outcome,
-        }),
+        body: JSON.stringify({ title, priority, tags, situation, response, outcome, outcomeType: "success" }),
       })
+      if (!res.ok && res.status === 404) {
+        res = await fetch("/api/knowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: "case",
+            title,
+            content: `상황: ${situation}\n대응: ${response}\n결과: ${outcome}`,
+            priority, tags, situation, response, outcome,
+          }),
+        })
+      }
       if (!res.ok) {
         const d = await res.json()
         setError(d.error ?? "등록에 실패했습니다.")
         return
       }
-      setTitle("")
-      setPriority("high")
-      setTags("")
-      setSituation("")
-      setResponse("")
-      setOutcome("")
-      setShowForm(false)
-      fetchItems()
+      setTitle(""); setPriority("high"); setTags("")
+      setSituation(""); setResponse(""); setOutcome("")
+      setShowForm(false); fetchItems()
     } catch {
       setError("등록 중 오류가 발생했습니다.")
     } finally {
@@ -146,7 +176,8 @@ export default function CasesPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("이 사례를 삭제하시겠습니까?")) return
-    await fetch(`/api/knowledge/${id}`, { method: "DELETE" })
+    const r = await fetch(`/api/cases/${id}`, { method: "DELETE" })
+    if (!r.ok) await fetch(`/api/knowledge/${id}`, { method: "DELETE" })
     fetchItems()
   }
 

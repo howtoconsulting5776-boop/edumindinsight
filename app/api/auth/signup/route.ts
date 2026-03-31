@@ -81,6 +81,9 @@ export async function POST(req: NextRequest) {
             full_name: full_name ?? "",
             role: role ?? "teacher",
             academy_id: academy_id || null,
+            plan: "free",
+            plan_started_at: new Date().toISOString(),
+            signup_method: "email",
           })
         } catch (profileErr) {
           console.warn("[signup] profile upsert failed:", profileErr)
@@ -145,7 +148,10 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     console.error("[POST /api/auth/signup]", err)
-    const msg = err instanceof Error ? err.message : "서버 오류가 발생했습니다."
-    return NextResponse.json({ error: msg }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("fetch failed") || msg.toLowerCase().includes("econnrefused") || msg.toLowerCase().includes("network")) {
+      return NextResponse.json({ error: "SUPABASE_PAUSED" }, { status: 503 })
+    }
+    return NextResponse.json({ error: "회원가입 중 서버 오류가 발생했습니다." }, { status: 500 })
   }
 }

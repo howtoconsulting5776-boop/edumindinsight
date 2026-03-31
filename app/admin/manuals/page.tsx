@@ -27,7 +27,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { KnowledgeItem } from "@/lib/store"
+
+interface ManualItem {
+  id: string
+  title: string
+  content: string
+  priority: "low" | "medium" | "high" | "critical"
+  tags: string[]
+  subject?: string
+  entryType?: string
+  createdAt: string
+  chunkCount?: number
+}
 
 function HIcon({
   icon,
@@ -51,14 +62,15 @@ function HIcon({
   )
 }
 
-const PRIORITY_STYLE = {
-  high: { label: "높음", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
-  medium: { label: "보통", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-  low: { label: "낮음", color: "#6B7280", bg: "#F9FAFB", border: "#E5E7EB" },
+const PRIORITY_STYLE: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  critical: { label: "긴급", color: "#DC2626", bg: "#FEF2F2", border: "#FCA5A5" },
+  high:     { label: "높음", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
+  medium:   { label: "보통", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+  low:      { label: "낮음", color: "#6B7280", bg: "#F9FAFB", border: "#E5E7EB" },
 }
 
 export default function ManualsPage() {
-  const [items, setItems] = useState<KnowledgeItem[]>([])
+  const [items, setItems] = useState<ManualItem[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -101,9 +113,26 @@ export default function ManualsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/knowledge")
+      // v3: /api/manuals 우선, 실패 시 /api/knowledge 폴백
+      let res = await fetch("/api/manuals")
+      if (!res.ok) {
+        res = await fetch("/api/knowledge")
+        const data = await res.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const manuals = (data.items as any[]).filter((i) => i.category === "manual").map((i) => ({
+          id: i.id, title: i.title, content: i.content, priority: i.priority,
+          tags: i.tags ?? [], createdAt: i.createdAt,
+        }))
+        setItems(manuals)
+        return
+      }
       const data = await res.json()
-      setItems((data.items as KnowledgeItem[]).filter((i) => i.category === "manual"))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setItems((data.items as any[]).map((i) => ({
+        id: i.id, title: i.title, content: i.content, priority: i.priority,
+        tags: i.tags ?? [], subject: i.subject, entryType: i.entryType,
+        createdAt: i.createdAt, chunkCount: i.chunkCount,
+      })))
     } catch {
       setError("데이터를 불러오는 중 오류가 발생했습니다.")
     } finally {
@@ -118,11 +147,19 @@ export default function ManualsPage() {
     setError("")
     setSubmitting(true)
     try {
-      const res = await fetch("/api/knowledge", {
+      // v3: /api/manuals 우선, 실패 시 /api/knowledge 폴백
+      let res = await fetch("/api/manuals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: "manual", title, content, priority, tags }),
+        body: JSON.stringify({ title, content, priority, tags }),
       })
+      if (!res.ok && res.status === 404) {
+        res = await fetch("/api/knowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: "manual", title, content, priority, tags }),
+        })
+      }
       if (!res.ok) {
         const d = await res.json()
         if (d.error?.includes("스키마") || d.error?.includes("schema") || d.error?.includes("Could not find")) {
@@ -135,10 +172,7 @@ export default function ManualsPage() {
         setError(d.error ?? "등록에 실패했습니다.")
         return
       }
-      setTitle("")
-      setContent("")
-      setPriority("medium")
-      setTags("")
+      setTitle(""); setContent(""); setPriority("medium"); setTags("")
       setShowForm(false)
       fetchItems()
     } catch {
@@ -150,36 +184,42 @@ export default function ManualsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("이 항목을 삭제하시겠습니까?")) return
-    await fetch(`/api/knowledge/${id}`, { method: "DELETE" })
+    // v3: /api/manuals/{id} 우선, 실패 시 /api/knowledge/{id} 폴백
+    const r = await fetch(`/api/manuals/${id}`, { method: "DELETE" })
+    if (!r.ok) await fetch(`/api/knowledge/${id}`, { method: "DELETE" })
     fetchItems()
   }
 
   function handleFileChange(file: File | null) {
-    setPdfError("")
-    setPdfSuccess(null)
+    setPdfError(""); setPdfSuccess(null)
     if (!file) { setUploadFile(null); setUploadFileType(null); return }
     const ft = detectFileType(file)
     if (!ft) {
       setPdfError("PDF 또는 이미지 파일(JPG, PNG, WebP, GIF)만 업로드 가능합니다.")
-      setUploadFile(null); setUploadFileType(null)
-      return
+      setUploadFile(null); setUploadFileType(null); return
     }
     if (file.size > 50 * 1024 * 1024) {
       setPdfError("파일 크기는 50MB 이하여야 합니다.")
-      setUploadFile(null); setUploadFileType(null)
-      return
+      setUploadFile(null); setUploadFileType(null); return
     }
-    setUploadFile(file)
-    setUploadFileType(ft)
+    setUploadFile(file); setUploadFileType(ft)
   }
 
   async function callUploadApi(formDataOrJson: FormData | object): Promise<boolean> {
     const isFormData = formDataOrJson instanceof FormData
-    const res = await fetch("/api/knowledge/upload", {
+    // v3: /api/manuals/upload 우선, 실패 시 /api/knowledge/upload 폴백
+    let res = await fetch("/api/manuals/upload", {
       method: "POST",
       headers: isFormData ? undefined : { "Content-Type": "application/json" },
       body: isFormData ? formDataOrJson : JSON.stringify(formDataOrJson),
     })
+    if (!res.ok && res.status === 404) {
+      res = await fetch("/api/knowledge/upload", {
+        method: "POST",
+        headers: isFormData ? undefined : { "Content-Type": "application/json" },
+        body: isFormData ? formDataOrJson : JSON.stringify(formDataOrJson),
+      })
+    }
     const data = await res.json()
     if (!res.ok) {
       if (data.error === "DB_SETUP_NEEDED" || res.status === 409) {
@@ -202,15 +242,10 @@ export default function ManualsPage() {
   async function handlePdfUpload(e: React.FormEvent) {
     e.preventDefault()
     if (!uploadFile) { setPdfError("파일을 선택해주세요."); return }
-    setPdfUploading(true)
-    setPdfError("")
-    setPdfSuccess(null)
-
+    setPdfUploading(true); setPdfError(""); setPdfSuccess(null)
     try {
-      // 1단계: 버킷 생성 보장 (없으면 서버에서 자동 생성)
       await fetch("/api/storage/ensure-bucket", { method: "POST" }).catch(() => {})
 
-      // 2단계: Supabase Storage에 직접 업로드 시도
       let storageOk = false
       let storagePath = ""
       try {
@@ -219,36 +254,21 @@ export default function ManualsPage() {
         const mimeType = isImage ? (uploadFile.type || "image/jpeg") : "application/pdf"
         const folder = isImage ? "images" : "pdfs"
         storagePath = `${folder}/${Date.now()}_${uploadFile.name.replace(/\s+/g, "_")}`
-
         const { error: uploadErr } = await supabase.storage
-          .from("pdf-uploads")
-          .upload(storagePath, uploadFile, { contentType: mimeType, upsert: false })
-
+          .from("pdf-uploads").upload(storagePath, uploadFile, { contentType: mimeType, upsert: false })
         if (!uploadErr) storageOk = true
         else console.warn("[upload] storage error:", uploadErr.message)
-      } catch (storageErr) {
-        console.warn("[upload] storage exception:", storageErr)
-      }
+      } catch (storageErr) { console.warn("[upload] storage exception:", storageErr) }
 
       if (storageOk) {
-        // 스토리지 업로드 성공 → API에 경로 전달
-        await callUploadApi({
-          storagePath,
-          originalName: uploadFile.name,
-          priority: pdfPriority,
-          tags: pdfTags,
-          bucket: "pdf-uploads",
-        })
+        await callUploadApi({ storagePath, originalName: uploadFile.name, priority: pdfPriority, tags: pdfTags, bucket: "pdf-uploads" })
       } else {
-        // 스토리지 실패 → 직접 multipart 전송 (4.5MB 이하 파일)
         if (uploadFile.size > 4 * 1024 * 1024) {
-          setPdfError("파일이 너무 큽니다. Supabase Storage 설정을 확인해주세요.\n관리자 패널 → DB 초기 설정 메뉴에서 Storage 버킷을 생성해주세요.")
+          setPdfError("파일이 너무 큽니다. Supabase Storage 설정을 확인해주세요.")
           return
         }
         const fd = new FormData()
-        fd.append("file", uploadFile)
-        fd.append("priority", pdfPriority)
-        fd.append("tags", pdfTags)
+        fd.append("file", uploadFile); fd.append("priority", pdfPriority); fd.append("tags", pdfTags)
         await callUploadApi(fd)
       }
     } catch {
@@ -547,11 +567,11 @@ export default function ManualsPage() {
         ) : (
           items
             .sort((a, b) => {
-              const order = { high: 3, medium: 2, low: 1 }
-              return order[b.priority] - order[a.priority]
+              const order: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
+              return (order[b.priority] ?? 1) - (order[a.priority] ?? 1)
             })
             .map((item) => {
-              const ps = PRIORITY_STYLE[item.priority]
+              const ps = PRIORITY_STYLE[item.priority] ?? PRIORITY_STYLE.low
               return (
                 <div
                   key={item.id}
@@ -580,11 +600,14 @@ export default function ManualsPage() {
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-gray-400 mt-3">
-                      {new Date(item.createdAt).toLocaleDateString("ko-KR", {
-                        year: "numeric", month: "long", day: "numeric",
-                      })}
-                    </p>
+                    <div className="flex items-center gap-3 mt-3">
+                      <p className="text-xs text-gray-400">
+                        {new Date(item.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+                      </p>
+                      {item.chunkCount != null && (
+                        <span className="text-xs text-purple-400">{item.chunkCount}개 청크</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => handleDelete(item.id)}

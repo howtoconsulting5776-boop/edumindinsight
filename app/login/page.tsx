@@ -85,12 +85,24 @@ export default function LoginPage() {
   const [copiedCode, setCopiedCode] = useState(false)
 
   const [error, setError] = useState("")
+  const [errorType, setErrorType] = useState<"normal" | "paused">("normal")
   const [loading, setLoading] = useState(false)
+  const [socialLoading, setSocialLoading] = useState<"google" | null>(null)
+
+  function showError(msg: string) {
+    if (msg === "SUPABASE_PAUSED" || msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("fetch failed")) {
+      setErrorType("paused")
+      setError("SUPABASE_PAUSED")
+    } else {
+      setErrorType("normal")
+      setError(msg)
+    }
+  }
 
   function resetFields() {
     setEmail(""); setPassword(""); setName(""); setConfirmPassword("")
     setAcademyName(""); setAcademyCode(""); setFoundAcademy(null)
-    setCreatedAcademy(null); setError(""); setCopiedCode(false)
+    setCreatedAcademy(null); setError(""); setErrorType("normal"); setCopiedCode(false)
   }
 
   function switchMode(next: Mode) {
@@ -124,15 +136,15 @@ export default function LoginPage() {
       authError = result.error
     } catch (err) {
       const msg = err instanceof Error ? err.message : ""
-      if (msg.includes("abort") || msg.includes("timeout") || msg.includes("fetch")) {
-        setError("Supabase 서버에 연결할 수 없습니다. dashboard.supabase.com에서 프로젝트가 일시정지(Paused) 상태인지 확인해주세요.")
+      if (msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("timeout")) {
+        showError("SUPABASE_PAUSED")
       } else {
-        setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        showError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
       }
       return
     }
     if (authError) {
-      setError(
+      showError(
         authError.message === "Invalid login credentials"
           ? "이메일 또는 비밀번호가 올바르지 않습니다."
           : authError.message
@@ -156,7 +168,7 @@ export default function LoginPage() {
 
     if (signupRole === "director") {
       // 1. 학원 생성
-      if (!academyName.trim()) { setError("학원 이름을 입력해주세요."); return }
+      if (!academyName.trim()) { showError("학원 이름을 입력해주세요."); return }
       let res: Response
       try {
         res = await fetch("/api/academies", {
@@ -164,8 +176,9 @@ export default function LoginPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: academyName.trim() }),
         })
-      } catch {
-        setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
+      } catch (fetchErr) {
+        const msg = fetchErr instanceof Error ? fetchErr.message : ""
+        showError(msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("fetch") ? "SUPABASE_PAUSED" : "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
         return
       }
       let data: { error?: string; academy?: { id: string; name: string; code: string } }
@@ -178,16 +191,16 @@ export default function LoginPage() {
           setDbSetupNeeded(true)
           return
         }
-        setError(data.error ?? "학원 생성에 실패했습니다.")
+        showError(data.error ?? "학원 생성에 실패했습니다.")
         return
       }
-      if (!data.academy) { setError("학원 생성에 실패했습니다."); return }
+      if (!data.academy) { showError("학원 생성에 실패했습니다."); return }
       academyId = data.academy.id
       resolvedAcademyName = data.academy.name
       setCreatedAcademy(data.academy)
     } else {
       // 2. 학원 코드로 가입
-      if (!foundAcademy) { setError("먼저 학원 코드를 검색하여 학원을 확인해주세요."); return }
+      if (!foundAcademy) { showError("먼저 학원 코드를 검색하여 학원을 확인해주세요."); return }
       academyId = foundAcademy.id
       resolvedAcademyName = foundAcademy.name
     }
@@ -207,8 +220,9 @@ export default function LoginPage() {
           academy_name: resolvedAcademyName,
         }),
       })
-    } catch {
-      setError("서버에 연결할 수 없습니다. Vercel 배포 로그를 확인해주세요.")
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : ""
+      showError(msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("fetch") ? "SUPABASE_PAUSED" : "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
       return
     }
     let data: Record<string, unknown>
@@ -221,7 +235,7 @@ export default function LoginPage() {
         setDbSetupNeeded(true)
         return
       }
-      setError((data.error as string) ?? "회원가입에 실패했습니다.")
+      showError((data.error as string) ?? "회원가입에 실패했습니다.")
       return
     }
 
@@ -251,6 +265,44 @@ export default function LoginPage() {
     }
 
     setMode("signup_done")
+  }
+
+  // ── 소셜 로그인 (Google) ─────────────────────────────────────────────────
+  async function handleGoogleLogin() {
+    if (!SUPABASE_CONFIGURED) {
+      setError("Google 로그인은 Supabase 설정이 필요합니다.")
+      return
+    }
+    setError("")
+    setSocialLoading("google")
+    try {
+      const supabase = createSupabaseBrowserClient()
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: true,
+        },
+      })
+      if (error) {
+        setError(
+          error.message.includes("provider is not enabled") || error.message.includes("Unsupported provider")
+            ? "Google 로그인이 Supabase 대시보드에서 활성화되지 않았습니다."
+            : `Google 로그인 오류: ${error.message}`
+        )
+        return
+      }
+      if (data?.url) {
+        window.location.href = data.url
+      } else {
+        setError("Google 로그인 URL을 가져오지 못했습니다. Supabase 대시보드 → Auth → Providers → Google 활성화를 확인하세요.")
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Google 로그인 오류: ${msg}`)
+    } finally {
+      setSocialLoading(null)
+    }
   }
 
   // ── Legacy 로그인 (Supabase 미설정 시) ──────────────────────────────────
@@ -617,7 +669,27 @@ export default function LoginPage() {
                   )}
 
                   {/* 에러 메시지 */}
-                  {error && (
+                  {error && errorType === "paused" && (
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <HIcon icon={Alert02Icon} size={16} primary="#D97706" secondary="#FDE68A" />
+                        <span className="text-amber-800 text-sm font-semibold">Supabase 프로젝트 연결 실패</span>
+                      </div>
+                      <p className="text-amber-700 text-xs leading-relaxed pl-6">
+                        무료 플랜은 7일 미사용 시 자동 일시정지됩니다.<br />
+                        아래 링크에서 프로젝트를 재개(Restore)한 뒤 다시 시도해주세요.
+                      </p>
+                      <a
+                        href="https://supabase.com/dashboard/project/iizltljruhspbequlynd"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-1.5 w-full h-9 rounded-xl text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors mt-1"
+                      >
+                        Supabase 대시보드에서 프로젝트 재개 →
+                      </a>
+                    </div>
+                  )}
+                  {error && errorType === "normal" && (
                     <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
                       <HIcon icon={Alert02Icon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                       <span className="text-red-600 text-sm leading-relaxed">{error}</span>
@@ -651,6 +723,35 @@ export default function LoginPage() {
                     )}
                   </Button>
                 </form>
+
+                {/* ── Google 로그인 ──────────────────────────────── */}
+                {SUPABASE_CONFIGURED && (
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-xs text-slate-400 font-medium">또는</span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={socialLoading !== null}
+                      className="flex w-full items-center justify-center gap-2.5 h-11 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {socialLoading === "google" ? (
+                        <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                        </svg>
+                      )}
+                      {socialLoading === "google" ? "연결 중..." : "Google로 계속하기"}
+                    </button>
+                  </div>
+                )}
 
                 {/* 하단 링크 */}
                 <p className="mt-5 text-xs text-center text-gray-400">

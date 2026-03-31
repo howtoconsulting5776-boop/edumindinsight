@@ -13,6 +13,7 @@ import {
   BulbIcon,
   CheckmarkCircle01Icon,
   Comment01Icon,
+  DashboardCircleIcon,
   FavouriteIcon,
   FileEditIcon,
   FlashIcon,
@@ -25,7 +26,32 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { UsageMeter } from "@/components/UsageMeter"
+import { ScoreLineChart } from "@/components/ScoreLineChart"
 import type { AnalysisMode, AnalysisResult } from "@/app/api/analyze/route"
+
+interface UsageData {
+  used: number
+  limit: number | null
+  remaining: number | null
+  percent: number
+  plan: string
+  signup_method?: "email" | "google" | "kakao"
+}
+
+interface StudentOption {
+  id: string
+  name: string
+  grade?: string
+  status: string
+}
 
 // ── Hugeicons wrapper — duotone brand colors ────────────────────────────────
 function HIcon({
@@ -238,10 +264,17 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [statusStep, setStatusStep] = useState(0)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [chartRefreshToken, setChartRefreshToken] = useState(0)
   const [usedModel, setUsedModel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null)
+  const [usageData, setUsageData] = useState<UsageData | null>(null)
   const rightPanelRef = useRef<HTMLDivElement>(null)
+
+  // 학생 선택 + 상담대상 선택
+  const [students, setStudents] = useState<StudentOption[]>([])
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("none")
+  const [contactType, setContactType] = useState<string>("student")
 
   useEffect(() => {
     if (!isAnalyzing) return
@@ -266,6 +299,23 @@ export default function Home() {
     if (result) setTimeout(() => rightPanelRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100)
   }, [result])
 
+  useEffect(() => {
+    fetch("/api/usage")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: UsageData | null) => { if (data) setUsageData(data) })
+      .catch(() => {/* 사용량 조회 실패 시 UI를 차단하지 않음 */})
+
+    // 학생 목록 조회 (에러 시 무시 — 로그인 전 or 권한 없는 경우)
+    fetch("/api/students?status=active&limit=100")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.students) {
+          setStudents(data.students.map((s: StudentOption) => ({ id: s.id, name: s.name, grade: s.grade, status: s.status })))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const handleLogout = async () => {
     setLoggingOut(true)
     await fetch("/api/auth/logout", { method: "POST" })
@@ -286,7 +336,12 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, mode }),
+        body: JSON.stringify({
+          text,
+          mode,
+          studentId: selectedStudentId !== "none" ? selectedStudentId : null,
+          contactType,
+        }),
         signal: controller.signal,
       })
 
@@ -308,6 +363,12 @@ export default function Home() {
       } else {
         setResult(data.result as AnalysisResult)
         setUsedModel(data.model as string)
+        setChartRefreshToken((t) => t + 1)
+        // 분석 성공 후 사용량 미터 갱신
+        fetch("/api/usage")
+          .then((r) => r.ok ? r.json() : null)
+          .then((d: UsageData | null) => { if (d) setUsageData(d) })
+          .catch(() => {})
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -345,25 +406,87 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Logout button */}
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                title="로그아웃"
-                className="mt-1 flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-50 shrink-0"
-              >
-                <HIcon
-                  icon={Logout01Icon}
-                  size={14}
-                  primary={loggingOut ? "#9CA3AF" : "#EF4444"}
-                  secondary={loggingOut ? "#D1D5DB" : "#FCA5A5"}
-                />
-                {loggingOut ? "로그아웃 중..." : "로그아웃"}
-              </button>
+              {/* Action buttons */}
+              <div className="mt-1 flex flex-col gap-2 shrink-0">
+                <a
+                  href="/admin"
+                  className="flex items-center gap-1.5 rounded-2xl border border-[#C4BEF0] bg-[#F0EFFB] px-3 py-2 text-xs font-medium text-[#3E2D9B] shadow-sm transition-all hover:bg-[#E8E5FF] hover:border-[#3E2D9B]"
+                >
+                  <HIcon icon={DashboardCircleIcon} size={14} primary="#3E2D9B" secondary="#C4BEF0" />
+                  지식 대시보드
+                </a>
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  title="로그아웃"
+                  className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                >
+                  <HIcon
+                    icon={Logout01Icon}
+                    size={14}
+                    primary={loggingOut ? "#9CA3AF" : "#EF4444"}
+                    secondary={loggingOut ? "#D1D5DB" : "#FCA5A5"}
+                  />
+                  {loggingOut ? "로그아웃 중..." : "로그아웃"}
+                </button>
+              </div>
             </div>
           </div>
 
+          {usageData && (
+            <div className="mb-5">
+              <UsageMeter
+                used={usageData.used}
+                limit={usageData.limit}
+                remaining={usageData.remaining}
+                percent={usageData.percent}
+                plan={usageData.plan}
+                signupMethod={usageData.signup_method}
+              />
+            </div>
+          )}
+
           <div className="flex flex-1 flex-col gap-5">
+            {/* 학생 선택 + 상담대상 선택 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-500">학생 선택</label>
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                  <SelectTrigger className="h-10 rounded-2xl border-slate-200 bg-[#F8F8FF] text-xs focus:border-[#3E2D9B]">
+                    <SelectValue placeholder="학생 선택 (선택사항)" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="none" className="rounded-xl text-xs">선택 안 함</SelectItem>
+                    {students.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="rounded-xl text-xs">
+                        {s.name}{s.grade ? ` (${s.grade})` : ""}
+                      </SelectItem>
+                    ))}
+                    {students.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-400">
+                        등록된 학생이 없습니다
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-500">상담 대상</label>
+                <Select value={contactType} onValueChange={setContactType}>
+                  <SelectTrigger className="h-10 rounded-2xl border-slate-200 bg-[#F8F8FF] text-xs focus:border-[#3E2D9B]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="student" className="rounded-xl text-xs">학생</SelectItem>
+                    <SelectItem value="father"  className="rounded-xl text-xs">아버지</SelectItem>
+                    <SelectItem value="mother"  className="rounded-xl text-xs">어머니</SelectItem>
+                    <SelectItem value="guardian" className="rounded-xl text-xs">보호자</SelectItem>
+                    <SelectItem value="other"   className="rounded-xl text-xs">기타</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {/* Textarea */}
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
@@ -566,7 +689,15 @@ export default function Home() {
               </div>
             </SectionCard>
 
-            {/* ── 2. 핵심 키워드 ── */}
+            {/* ── 2. 분석 추세 ── */}
+            <SectionCard icon={Analytics01Icon} title="분석 추세">
+              <ScoreLineChart
+                studentId={selectedStudentId !== "none" ? selectedStudentId : null}
+                refreshToken={chartRefreshToken}
+              />
+            </SectionCard>
+
+            {/* ── 3. 핵심 키워드 ── */}
             <SectionCard icon={LabelIcon} title="핵심 키워드">
               <div className="flex flex-wrap gap-2.5">
                 {result.keywords.map((kw) => (
@@ -581,7 +712,7 @@ export default function Home() {
               </div>
             </SectionCard>
 
-            {/* ── 3. AI 심리 분석 ── */}
+            {/* ── 4. AI 심리 분석 ── */}
             <SectionCard icon={AiBrain01Icon} title="AI 심리 분석">
               <div className="rounded-2xl p-5" style={{ backgroundColor: "#EEF0FF" }}>
                 <div className="mb-2 flex items-center gap-2">
@@ -592,7 +723,7 @@ export default function Home() {
               </div>
             </SectionCard>
 
-            {/* ── 4. 대응 스크립트 ── */}
+            {/* ── 5. 대응 스크립트 ── */}
             <SectionCard icon={BulbIcon} title="대응 스크립트 3종">
               <p className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
                 <HIcon icon={ArrowRight01Icon} size={13} primary="#94a3b8" secondary="#cbd5e1" />
@@ -625,7 +756,7 @@ export default function Home() {
               </div>
             </SectionCard>
 
-            {/* ── 5. 강사 위로 한마디 ── */}
+            {/* ── 6. 강사 위로 한마디 ── */}
             <div
               className="relative overflow-hidden rounded-3xl p-8 text-center text-white shadow-2xl"
               style={{

@@ -48,14 +48,16 @@ export async function GET() {
 
   if (isSupabaseConfigured()) {
     const db = createSupabaseAdminClient()
+    // v3: academy_id IS NULL = 전역 기본 페르소나
     const { data, error } = await db
       .from("persona_settings")
       .select("*")
-      .eq("id", 1)
-      .single()
+      .is("academy_id", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
-    if (error) {
-      // Row might not exist yet — return defaults
+    if (error || !data) {
       return NextResponse.json(readPersona())
     }
     return NextResponse.json(dbToPersona(data))
@@ -72,15 +74,38 @@ export async function PUT(req: NextRequest) {
 
   if (isSupabaseConfigured()) {
     const db = createSupabaseAdminClient()
-    const { data, error } = await db
-      .from("persona_settings")
-      .upsert({ id: 1, ...personaToDb(body) })
-      .select()
-      .single()
 
-    if (error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(dbToPersona(data))
+    // 기존 전역 페르소나 행 조회 (academy_id IS NULL)
+    const { data: existing } = await db
+      .from("persona_settings")
+      .select("id")
+      .is("academy_id", null)
+      .limit(1)
+      .maybeSingle()
+
+    let result
+    if (existing?.id) {
+      // 기존 행 업데이트
+      const { data, error } = await db
+        .from("persona_settings")
+        .update(personaToDb(body))
+        .eq("id", existing.id)
+        .select()
+        .single()
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      result = data
+    } else {
+      // 행이 없으면 새로 삽입 (academy_id = NULL = 전역)
+      const { data, error } = await db
+        .from("persona_settings")
+        .insert({ ...personaToDb(body), academy_id: null })
+        .select()
+        .single()
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      result = data
+    }
+
+    return NextResponse.json(dbToPersona(result))
   }
 
   writePersona(body)

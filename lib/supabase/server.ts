@@ -4,6 +4,8 @@ import { cookies } from "next/headers"
 
 // ── UserProfile type shared across the app ────────────────────────────────
 export type UserRole = "admin" | "director" | "teacher"
+export type Plan = "free" | "pro" | "enterprise"
+export type SignupMethod = "email" | "google"
 
 export interface UserProfile {
   id: string
@@ -12,7 +14,12 @@ export interface UserProfile {
   academyId: string | null
   academyName: string | null
   academyCode: string | null
-  fullName: string | null
+  /** auth.users.user_metadata.name 또는 full_name에서 읽음 — profiles 테이블에는 저장하지 않음 */
+  displayName: string | null
+  plan: Plan
+  planStartedAt: string | null
+  planExpiresAt: string | null
+  signupMethod: SignupMethod
 }
 
 // ── Supabase client for server components / route handlers ─────────────────
@@ -126,20 +133,14 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
   const adminEmail = process.env.ADMIN_EMAIL ?? ""
 
-  // Super-admin shortcut — no DB query needed
-  if (user.email === adminEmail) {
-    return {
-      id: user.id,
-      email: user.email!,
-      role: "admin",
-      academyId: null,
-      academyName: null,
-      academyCode: null,
-      fullName: user.user_metadata?.full_name ?? null,
-    }
-  }
+  // displayName: profiles에는 저장하지 않고 user_metadata에서 읽음
+  const displayName =
+    user.user_metadata?.full_name ??
+    user.user_metadata?.name ??
+    null
 
   // Try profiles table (authoritative source)
+  // admin 포함 모든 유저의 academy_id / 학원 정보를 DB에서 조회
   try {
     const db = createSupabaseAdminClient()
     const { data } = await db
@@ -151,18 +152,42 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     if (data) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const academy = (data as any).academies
+      const isAdmin = user.email === adminEmail
       return {
         id: user.id,
         email: user.email!,
-        role: data.role as UserRole,
+        // admin 이메일이면 role을 항상 'admin'으로 강제 (DB 값 무관)
+        role: isAdmin ? "admin" : (data.role as UserRole),
         academyId: data.academy_id ?? null,
         academyName: academy?.name ?? null,
         academyCode: academy?.code ?? null,
-        fullName: data.full_name ?? null,
+        displayName,
+        // admin 이메일이면 plan을 항상 'enterprise'로 강제
+        plan: isAdmin ? ("enterprise" as Plan) : ((data.plan as Plan) ?? "free"),
+        planStartedAt: data.plan_started_at ?? null,
+        planExpiresAt: data.plan_expires_at ?? null,
+        signupMethod: (data.signup_method as SignupMethod) ?? "email",
       }
     }
   } catch {
     // Table might not exist yet — fall through to metadata
+  }
+
+  // DB에 profiles 행이 없는 경우: admin 이메일이면 기본값 반환
+  if (user.email === adminEmail) {
+    return {
+      id: user.id,
+      email: user.email!,
+      role: "admin" as UserRole,
+      academyId: user.user_metadata?.academy_id ?? null,
+      academyName: user.user_metadata?.academy_name ?? null,
+      academyCode: null,
+      displayName,
+      plan: "enterprise" as Plan,
+      planStartedAt: null,
+      planExpiresAt: null,
+      signupMethod: "email" as SignupMethod,
+    }
   }
 
   // Fallback: JWT user_metadata (set during signUp)
@@ -174,7 +199,11 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     academyId: meta.academy_id ?? null,
     academyName: meta.academy_name ?? null,
     academyCode: null,
-    fullName: meta.full_name ?? null,
+    displayName,
+    plan: "free" as Plan,
+    planStartedAt: null,
+    planExpiresAt: null,
+    signupMethod: "email" as SignupMethod,
   }
 }
 

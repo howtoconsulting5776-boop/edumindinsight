@@ -7,7 +7,14 @@ import {
   createSupabaseAdminClient,
   createSupabaseServerClient,
 } from "@/lib/supabase/server"
+import { getRemainingUsage } from "@/services/usageService"
+import type { Plan } from "@/services/usageService"
 import type { KnowledgeItem, PersonaSettings } from "@/lib/store"
+
+// ADMIN_BYPASS_EMAIL 환경변수 설정 안내:
+// .env.local 에 아래 항목을 추가하세요.
+// # 사용량 제한 bypass 이메일 (테스트/관리자용)
+// ADMIN_BYPASS_EMAIL=your_admin_email@example.com
 
 export type AnalysisMode = "general" | "deep"
 
@@ -227,123 +234,205 @@ McKinsey 수준의 구조적 분석과 임상심리 기반 해석을 결합하�
 스크립트는 실전에서 읽었을 때 즉시 신뢰감을 주는 전문가의 언어로 작성하라.`
 }
 
-// ── Supabase RAG: fetch knowledge items ordered by priority ─────────────────
-async function fetchSupabaseKnowledge(inputText: string, academyId: string | null): Promise<string> {
+// ── Plan별 이전 이력 주입 건수 상한 ──────────────────────────────────────────
+const HISTORY_LIMIT: Record<string, number> = { free: 3, pro: 7, enterprise: 15 }
+
+// ── Supabase RAG v3: knowledge_chunks + counseling_cases + 학생 이력 ─────────
+async function fetchSupabaseKnowledge(
+  inputText: string,
+  academyId: string | null,
+  studentId: string | null = null,
+  plan: string = "free"
+): Promise<{ context: string; chunksUsed: number; casesUsed: number; historyUsed: boolean; historyCount: number }> {
+  const empty = { context: "", chunksUsed: 0, casesUsed: 0, historyUsed: false, historyCount: 0 }
   try {
     const db = createSupabaseAdminClient()
 
-    // Fetch persona settings — scoped by academy if available
-    let personaQuery = db.from("persona_settings").select("*")
-    if (academyId) {
-      // prefer academy-specific persona; fall back to global (id=1)
-      personaQuery = db
-        .from("persona_settings")
-        .select("*")
-        .or(`academy_id.eq.${academyId},id.eq.1`)
-        .order("academy_id", { ascending: false }) // academy-specific first (non-null > null)
-        .limit(1)
-    } else {
-      personaQuery = personaQuery.eq("id", 1)
-    }
-    // eslint-disable-next-line prefer-const
+    // ── 1. 페르소나 조회 (academy_id IS NULL = 전역 기본) ──────────────────
     let personaRow: Record<string, unknown> | null = null
     try {
-      const { data } = await personaQuery.single()
+      let pq = db.from("persona_settings").select("*").is("academy_id", null).limit(1)
+      if (academyId) {
+        pq = db
+          .from("persona_settings")
+          .select("*")
+          .or(`academy_id.eq.${academyId},academy_id.is.null`)
+          .order("academy_id", { ascending: false })
+          .limit(1)
+      }
+      const { data } = await pq.maybeSingle()
       personaRow = data as Record<string, unknown> | null
-    } catch { /* no persona row found — use defaults */ }
+    } catch { /* 페르소나 없으면 기본값 사용 */ }
 
-    // Fetch knowledge items: academy-specific OR global (academy_id IS NULL)
-    let knowledgeQuery = db
-      .from("knowledge_base")
-      .select("*")
-      .order("priority", { ascending: false })
-      .limit(20)
+    // ── 2. 키워드 추출 (RAG 관련도 계산용) ────────────────────────────────
+    const inputWords = new Set(
+      inputText.toLowerCase().split(/\s+/)
+        .map((w) => w.replace(/[^\w가-힣]/g, "")).filter((w) => w.length > 1)
+    )
+    const priorityOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
 
-    if (academyId) {
-      knowledgeQuery = db
-        .from("knowledge_base")
-        .select("*")
-        .or(`academy_id.eq.${academyId},academy_id.is.null`)
+    // ── 3. knowledge_chunks 조회 (v3 신규 테이블) ─────────────────────────
+    let chunks: Array<{ content: string; priority: string; subject: string; title?: string }> = []
+    try {
+      let cq = db
+        .from("knowledge_chunks")
+        .select("content, priority, subject, manual_sources!inner(title)")
         .order("priority", { ascending: false })
-        .limit(20)
+        .limit(30)
+
+      if (academyId) {
+        cq = db
+          .from("knowledge_chunks")
+          .select("content, priority, subject, manual_sources!inner(title)")
+          .or(`academy_id.eq.${academyId},academy_id.is.null`)
+          .order("priority", { ascending: false })
+          .limit(30)
+      }
+
+      const { data } = await cq
+      if (data && data.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const scored = (data as any[]).map((r) => {
+          const words = r.content.toLowerCase().split(/\s+/)
+          const overlap = words.filter((w: string) => inputWords.has(w)).length
+          return { ...r, score: overlap + (priorityOrder[r.priority] ?? 1) }
+        })
+        scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+        chunks = scored.slice(0, 6)
+      }
+    } catch { /* knowledge_chunks 없으면 폴백 없음 (v3 이후) */ }
+
+    // knowledge_chunks가 없으면 knowledge_base 폴백 (마이그레이션 전 호환)
+    if (chunks.length === 0) {
+      try {
+        let kq = db.from("knowledge_base").select("*").eq("category", "manual")
+          .order("priority", { ascending: false }).limit(20)
+        if (academyId) {
+          kq = db.from("knowledge_base").select("*").eq("category", "manual")
+            .or(`academy_id.eq.${academyId},academy_id.is.null`)
+            .order("priority", { ascending: false }).limit(20)
+        }
+        const { data } = await kq
+        if (data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const scored = (data as any[]).map((r) => {
+            const words = [r.title, r.content, ...(r.tags ?? [])].join(" ").toLowerCase().split(/\s+/)
+            const overlap = words.filter((w: string) => inputWords.has(w)).length
+            return { content: r.content, priority: r.priority, subject: "general", title: r.title, score: overlap + (priorityOrder[r.priority] ?? 1) }
+          })
+          scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+          chunks = scored.slice(0, 6)
+        }
+      } catch { /* ignore */ }
     }
 
-    const { data: rows, error } = await knowledgeQuery
+    // ── 4. counseling_cases 조회 (성공 사례만) ────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let caseRows: any[] = []
+    try {
+      let csq = db
+        .from("counseling_cases")
+        .select("title, situation, response, outcome, priority, subject")
+        .eq("is_active", true)
+        .eq("outcome_type", "success")
+        .order("priority", { ascending: false })
+        .limit(20)
 
-    if (error) throw error
+      if (academyId) {
+        csq = db
+          .from("counseling_cases")
+          .select("title, situation, response, outcome, priority, subject")
+          .eq("is_active", true)
+          .eq("outcome_type", "success")
+          .or(`academy_id.eq.${academyId},academy_id.is.null`)
+          .order("priority", { ascending: false })
+          .limit(20)
+      }
 
-    const items: KnowledgeItem[] = (rows ?? []).map((r) => ({
-      id: r.id,
-      category: r.category,
-      title: r.title,
-      content: r.content,
-      priority: r.priority,
-      tags: r.tags ?? [],
-      situation: r.situation ?? undefined,
-      response: r.response ?? undefined,
-      outcome: r.outcome ?? undefined,
-      createdAt: r.created_at,
-    }))
+      const { data } = await csq
+      if (data && data.length > 0) {
+        const scored = data.map((r) => {
+          const words = [r.title, r.situation ?? "", r.response ?? "", r.outcome ?? ""]
+            .join(" ").toLowerCase().split(/\s+/)
+          const overlap = words.filter((w) => inputWords.has(w)).length
+          return { ...r, score: overlap + (priorityOrder[r.priority] ?? 1) }
+        })
+        scored.sort((a, b) => b.score - a.score)
+        caseRows = scored.slice(0, 4)
+      }
+    } catch { /* counseling_cases 없으면 knowledge_base case 폴백 */ }
 
-    // Keyword relevance scoring (same algorithm as file-based store)
-    const inputWords = new Set(
-      inputText
-        .toLowerCase()
-        .split(/\s+/)
-        .map((w) => w.replace(/[^\w가-힣]/g, ""))
-        .filter((w) => w.length > 1)
-    )
-    const priorityOrder = { high: 3, medium: 2, low: 1 } as const
+    if (caseRows.length === 0) {
+      try {
+        let kq = db.from("knowledge_base").select("*").eq("category", "case")
+          .order("priority", { ascending: false }).limit(10)
+        if (academyId) {
+          kq = db.from("knowledge_base").select("*").eq("category", "case")
+            .or(`academy_id.eq.${academyId},academy_id.is.null`)
+            .order("priority", { ascending: false }).limit(10)
+        }
+        const { data } = await kq
+        if (data) {
+          const scored = data.map((r) => {
+            const words = [r.title, r.content ?? "", r.situation ?? ""].join(" ").toLowerCase().split(/\s+/)
+            const overlap = words.filter((w) => inputWords.has(w)).length
+            return { ...r, score: overlap + (priorityOrder[r.priority] ?? 1) }
+          })
+          scored.sort((a, b) => b.score - a.score)
+          caseRows = scored.slice(0, 4)
+        }
+      } catch { /* ignore */ }
+    }
 
-    const scored = items.map((item) => {
-      const words = [item.title, item.content, ...(item.tags ?? [])]
-        .join(" ").toLowerCase().split(/\s+/)
-      const overlap = words.filter((w) => inputWords.has(w)).length
-      return { item, score: overlap + priorityOrder[item.priority] }
-    })
-    scored.sort((a, b) => b.score - a.score)
-    const topItems = scored.slice(0, 8).map((s) => s.item)
+    // ── 5. 학생 이전 이력 조회 ────────────────────────────────────────────
+    const historyLimit = HISTORY_LIMIT[plan] ?? 3
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let historyRows: any[] = []
+    if (studentId) {
+      try {
+        const { data } = await db
+          .from("counseling_logs")
+          .select("contact_type, risk_score, keywords, subject, history_summary, created_at")
+          .eq("student_id", studentId)
+          .not("history_summary", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(historyLimit)
+        historyRows = data ?? []
+      } catch { /* 이력 없으면 무시 */ }
+    }
 
+    // ── 6. 프롬프트 컨텍스트 조합 ─────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pr = personaRow as any
     const persona: PersonaSettings = pr
-      ? {
-          tone: pr.tone as PersonaSettings["tone"],
-          empathyLevel: pr.empathy_level as number,
-          formality: pr.formality as number,
-          customInstructions: (pr.custom_instructions as string) ?? "",
-        }
+      ? { tone: pr.tone, empathyLevel: pr.empathy_level, formality: pr.formality, customInstructions: pr.custom_instructions ?? "" }
       : { tone: "empathetic", empathyLevel: 70, formality: 65, customInstructions: "" }
 
-    const manuals = topItems.filter((i) => i.category === "manual")
-    const cases   = topItems.filter((i) => i.category === "case")
-    const lines: string[] = []
-
-    const toneMap = {
+    const toneMap: Record<string, string> = {
       empathetic: "공감과 감정 수용을 최우선으로 하는 따뜻한 상담가 톤",
       logical:    "데이터와 논리적 근거를 중심으로 하는 분석적 컨설턴트 톤",
       assertive:  "명확하고 단호한 리더십으로 방향을 제시하는 전문가 톤",
     }
 
+    const lines: string[] = []
     lines.push(`## 🎯 AI 페르소나 설정 (최우선 적용)`)
-    lines.push(`분석 톤: ${toneMap[persona.tone]}`)
+    lines.push(`분석 톤: ${toneMap[persona.tone] ?? toneMap.empathetic}`)
     lines.push(`공감 강도: ${persona.empathyLevel}/100 | 격식 수준: ${persona.formality}/100`)
-    if (persona.customInstructions)
-      lines.push(`추가 지침: ${persona.customInstructions}`)
+    if (persona.customInstructions) lines.push(`추가 지침: ${persona.customInstructions}`)
     lines.push("")
 
-    if (manuals.length > 0) {
+    if (chunks.length > 0) {
       lines.push(`## 📋 우리 학원의 절대 원칙 (반드시 준수)`)
-      for (const m of manuals) {
-        const lbl = m.priority === "high" ? "[최우선]" : m.priority === "medium" ? "[일반]" : "[참고]"
-        lines.push(`${lbl} **${m.title}**: ${m.content}`)
+      for (const c of chunks) {
+        const lbl = c.priority === "critical" ? "[필수]" : c.priority === "high" ? "[최우선]" : c.priority === "medium" ? "[일반]" : "[참고]"
+        lines.push(`${lbl} ${c.content}`)
       }
       lines.push("")
     }
 
-    if (cases.length > 0) {
+    if (caseRows.length > 0) {
       lines.push(`## 💡 참고할 성공 경험 (이 학원의 실전 사례)`)
-      for (const c of cases) {
+      for (const c of caseRows) {
         lines.push(`**사례: ${c.title}**`)
         if (c.situation) lines.push(`- 상황: ${c.situation}`)
         if (c.response)  lines.push(`- 대응: ${c.response}`)
@@ -352,29 +441,63 @@ async function fetchSupabaseKnowledge(inputText: string, academyId: string | nul
       lines.push("")
     }
 
-    if (lines.length > 4) {
-      lines.push(`---`)
-      lines.push(`위 원칙과 사례를 반드시 반영하여 아래 상담을 분석하십시오.`)
+    if (historyRows.length > 0) {
+      const contactLabel: Record<string, string> = {
+        student: "학생", father: "아버지", mother: "어머니", guardian: "보호자", other: "기타"
+      }
+      lines.push(`## 📅 이 학생의 이전 상담 이력 (최근 ${historyRows.length}건 — 맥락 파악에 활용)`)
+      for (const h of historyRows) {
+        const date = new Date(h.created_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
+        const who  = contactLabel[h.contact_type] ?? h.contact_type
+        const risk = h.risk_score != null ? ` / 위험도 ${h.risk_score}` : ""
+        lines.push(`- ${date} (${who} 상담${risk}): ${h.history_summary ?? h.keywords?.join(", ") ?? "기록 없음"}`)
+      }
+      lines.push("※ 위 이력을 참고하여 이번 상담의 변화나 패턴을 분석에 반영하세요.")
       lines.push("")
     }
 
-    return lines.join("\n")
+    if (lines.length > 4) {
+      lines.push(`---`)
+      lines.push(`위 원칙·사례·이력을 반드시 반영하여 아래 상담을 분석하십시오.`)
+      lines.push("")
+    }
+
+    return {
+      context:      lines.join("\n"),
+      chunksUsed:   chunks.length,
+      casesUsed:    caseRows.length,
+      historyUsed:  historyRows.length > 0,
+      historyCount: historyRows.length,
+    }
   } catch (err) {
     console.warn("[analyze] Supabase RAG fetch failed, skipping:", err)
-    return ""
+    return empty
   }
 }
 
-// ── Save counseling log to Supabase ─────────────────────────────────────────
+// ── Save counseling log to Supabase (v3) ─────────────────────────────────────
 async function saveCounselingLog(
   rawText: string,
   sanitizedText: string,
   mode: AnalysisMode,
   result: AnalysisResult,
-  academyId: string | null = null
+  academyId: string | null = null,
+  analyzedBy: string | null = null,
+  studentId: string | null = null,
+  contactType: string = "student",
+  ragMeta: { chunksUsed: number; casesUsed: number; historyUsed: boolean; historyCount: number } = { chunksUsed: 0, casesUsed: 0, historyUsed: false, historyCount: 0 }
 ): Promise<void> {
   try {
     const db = createSupabaseAdminClient()
+
+    // history_summary: AI 응답의 summary를 축약해 다음 상담에서 이전 이력으로 활용
+    const historySummary = (() => {
+      const keywords = result.keywords?.slice(0, 5).join(", ") ?? ""
+      const risk = result.riskScore != null ? `위험도 ${result.riskScore}` : ""
+      const parts = [risk, keywords].filter(Boolean)
+      return parts.length > 0 ? parts.join(" / ") : null
+    })()
+
     await db.from("counseling_logs").insert({
       original_text:  rawText,
       sanitized_text: sanitizedText,
@@ -383,11 +506,18 @@ async function saveCounselingLog(
       positive_score: result.positiveScore,
       negative_score: result.negativeScore,
       keywords:       result.keywords ?? [],
-      result:         result,
+      result,
       academy_id:     academyId,
+      analyzed_by:    analyzedBy,
+      student_id:     studentId,
+      contact_type:   contactType,
+      history_summary: historySummary,
+      history_used:   ragMeta.historyUsed,
+      history_count:  ragMeta.historyCount,
+      chunks_used:    ragMeta.chunksUsed,
+      cases_used:     ragMeta.casesUsed,
     })
   } catch (err) {
-    // Non-critical — don't fail the response if logging fails
     console.warn("[analyze] Counseling log save failed:", err)
   }
 }
@@ -402,10 +532,55 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // ── Usage Guard ─────────────────────────────────────────────────────────
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        const adminBypassEmail = process.env.ADMIN_BYPASS_EMAIL
+        const userEmail = user.email ?? ""
+
+        if (!adminBypassEmail || userEmail !== adminBypassEmail) {
+          const db = createSupabaseAdminClient()
+          const { data: profile } = await db
+            .from("profiles")
+            .select("academy_id, plan")
+            .eq("id", user.id)
+            .single()
+
+          const plan = ((profile?.plan as Plan) ?? "free")
+          const academyId: string | null = profile?.academy_id ?? null
+
+          if (plan !== "enterprise" && academyId) {
+            const { used, limit, remaining } = await getRemainingUsage(academyId, plan)
+            if (limit !== null && remaining !== null && remaining <= 0) {
+              return NextResponse.json(
+                {
+                  error: "USAGE_LIMIT_EXCEEDED",
+                  message: "이번 달 사용량을 모두 소진하셨습니다. Pro 플랜으로 업그레이드하세요.",
+                  used,
+                  limit,
+                },
+                { status: 403 }
+              )
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[analyze] Usage guard check failed:", err)
+    }
+  }
+  // ── End Usage Guard ──────────────────────────────────────────────────────
+
   try {
     const body = await req.json()
-    const rawText: string = body.text ?? ""
-    const mode: AnalysisMode = body.mode === "deep" ? "deep" : "general"
+    const rawText: string     = body.text ?? ""
+    const mode: AnalysisMode  = body.mode === "deep" ? "deep" : "general"
+    const studentId: string | null = body.studentId ?? null
+    const contactType: string      = body.contactType ?? "student"
 
     if (!rawText.trim()) {
       return NextResponse.json({ error: "상담 내용을 입력해주세요." }, { status: 400 })
@@ -415,28 +590,35 @@ export async function POST(req: NextRequest) {
     const sanitizedText = deidentify(rawText)
 
     // Step 2 — Select model / temperature by mode
-    const modelId    = "gemini-2.0-flash"
+    const modelId     = "gemini-2.0-flash"
     const temperature = mode === "deep" ? 0.3 : 0.7
-
     const systemPrompt = buildSystemPrompt(mode)
 
-    // Step 3 — Resolve the caller's academy for RAG isolation
-    // Read academy_id from the session JWT (no DB round-trip).
-    let academyId: string | null = null
+    // Step 3 — Resolve the caller's academy + user for RAG isolation and logging
+    let academyId:  string | null = null
+    let analyzedBy: string | null = null
+    let userPlan:   string        = "free"
     if (isSupabaseConfigured()) {
       try {
         const supabase = await createSupabaseServerClient()
         const { data: { session } } = await supabase.auth.getSession()
-        academyId = session?.user?.user_metadata?.academy_id ?? null
-      } catch {
-        // If session lookup fails, proceed without academy scoping
-      }
+        if (session?.user) {
+          academyId  = session.user.user_metadata?.academy_id ?? null
+          analyzedBy = session.user.id
+          // plan은 이미 Usage Guard에서 조회했지만, RAG 이력 건수 제한용으로 다시 사용
+          const db = createSupabaseAdminClient()
+          const { data: prof } = await db.from("profiles").select("plan").eq("id", session.user.id).single()
+          userPlan = prof?.plan ?? "free"
+        }
+      } catch { /* session 조회 실패 시 계속 진행 */ }
     }
 
-    // Step 4 — Retrieve RAG context (academy-scoped)
-    const ragContext = isSupabaseConfigured()
-      ? await fetchSupabaseKnowledge(sanitizedText, academyId)
-      : buildRagContext(sanitizedText)
+    // Step 4 — Retrieve RAG context v3 (academy-scoped + student history)
+    let ragMeta = { context: "", chunksUsed: 0, casesUsed: 0, historyUsed: false, historyCount: 0 }
+    if (isSupabaseConfigured()) {
+      ragMeta = await fetchSupabaseKnowledge(sanitizedText, academyId, studentId, userPlan)
+    }
+    const ragContext = ragMeta.context || buildRagContext(sanitizedText)
 
     // Step 5 — Build the full prompt
     const fullPrompt = ragContext
@@ -467,13 +649,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Step 6 — Persist analysis log to Supabase (non-blocking)
+    // Step 6 — Persist analysis log (INSERT failure must not block the result)
     if (isSupabaseConfigured()) {
-      saveCounselingLog(rawText, sanitizedText, mode, result, academyId)
+      await saveCounselingLog(
+        rawText, sanitizedText, mode, result,
+        academyId, analyzedBy, studentId, contactType,
+        { chunksUsed: ragMeta.chunksUsed, casesUsed: ragMeta.casesUsed, historyUsed: ragMeta.historyUsed, historyCount: ragMeta.historyCount }
+      )
     }
 
     return NextResponse.json({ result, sanitizedText, model: modelId })
   } catch (err) {
+    // counseling_logs INSERT is intentionally NOT called here — analysis failed.
     const message = err instanceof Error ? err.message : String(err)
     console.error("[analyze] error:", message)
 

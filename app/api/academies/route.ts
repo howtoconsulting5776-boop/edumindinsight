@@ -103,12 +103,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ academy: { id: data.id, name: data.name, code: data.code } }, { status: 201 })
   } catch (err) {
     console.error("[POST /api/academies]", err)
-    const msg = err instanceof Error ? err.message : "서버 오류가 발생했습니다."
+    const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes("SERVICE_ROLE_KEY") || msg.includes("service_role")) {
       return NextResponse.json({
         error: "서버 설정 오류: SUPABASE_SERVICE_ROLE_KEY 환경 변수가 필요합니다.",
       }, { status: 503 })
     }
-    return NextResponse.json({ error: msg }, { status: 500 })
+    if (msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("fetch failed") || msg.toLowerCase().includes("econnrefused") || msg.toLowerCase().includes("network")) {
+      return NextResponse.json({
+        error: "SUPABASE_PAUSED",
+      }, { status: 503 })
+    }
+    return NextResponse.json({ error: "학원 생성 중 서버 오류가 발생했습니다." }, { status: 500 })
   }
 }
