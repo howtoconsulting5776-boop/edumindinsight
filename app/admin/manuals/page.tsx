@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -285,7 +285,7 @@ export default function ManualsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
             <HIcon icon={BookOpen01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           </div>
           <div>
@@ -297,14 +297,14 @@ export default function ManualsPage() {
           <Button
             onClick={() => { setShowFileUpload(!showFileUpload); setShowForm(false) }}
             variant="outline"
-            className="rounded-2xl shadow-sm flex items-center gap-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-purple-50"
+            className="rounded-lg shadow-sm flex items-center gap-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-purple-50"
           >
             <HIcon icon={Upload01Icon} size={16} primary="#3E2D9B" secondary="#C4BEF0" />
             파일 업로드
           </Button>
           <Button
             onClick={() => { setShowForm(!showForm); setShowFileUpload(false) }}
-            className="rounded-2xl shadow-md flex items-center gap-2"
+            className="rounded-lg shadow-md flex items-center gap-2"
             style={{ background: "#3E2D9B" }}
           >
             <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
@@ -315,7 +315,7 @@ export default function ManualsPage() {
 
       {/* 파일 업로드 폼 (PDF + 이미지) */}
       {showFileUpload && (
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
           <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
             <HIcon icon={Upload01Icon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
             파일 업로드 (PDF · 이미지)
@@ -325,7 +325,7 @@ export default function ManualsPage() {
           </p>
 
           {pdfSuccess && (
-            <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 border border-green-100 mb-5">
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-100 mb-5">
               <HIcon icon={CheckmarkCircle01Icon} size={18} primary="#10B981" secondary="#6EE7B7" />
               <div>
                 <p className="text-green-700 text-sm font-semibold">{pdfSuccess.fileName} 업로드 완료!</p>
@@ -352,7 +352,7 @@ export default function ManualsPage() {
                 setDragOver(false)
                 handleFileChange(e.dataTransfer.files[0] ?? null)
               }}
-              className={`cursor-pointer border-2 border-dashed rounded-2xl p-8 flex flex-col items-center gap-3 transition-colors ${
+              className={`cursor-pointer border-2 border-dashed rounded-lg p-8 flex flex-col items-center gap-3 transition-colors ${
                 dragOver
                   ? "border-[#3E2D9B] bg-purple-50"
                   : uploadFile
@@ -401,13 +401,13 @@ export default function ManualsPage() {
               <div className="space-y-1.5">
                 <Label className="text-sm font-semibold text-gray-700">우선순위</Label>
                 <Select value={pdfPriority} onValueChange={(v) => setPdfPriority(v as typeof pdfPriority)}>
-                  <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
+                  <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="high" className="rounded-xl"><span className="font-semibold text-red-600">🔴 높음</span></SelectItem>
-                    <SelectItem value="medium" className="rounded-xl"><span className="font-semibold text-amber-600">🟡 보통</span></SelectItem>
-                    <SelectItem value="low" className="rounded-xl"><span className="font-semibold text-gray-600">⚪ 낮음</span></SelectItem>
+                  <SelectContent className="rounded-lg">
+                    <SelectItem value="high" className="rounded-md"><span className="font-semibold text-red-600">🔴 높음</span></SelectItem>
+                    <SelectItem value="medium" className="rounded-md"><span className="font-semibold text-amber-600">🟡 보통</span></SelectItem>
+                    <SelectItem value="low" className="rounded-md"><span className="font-semibold text-gray-600">⚪ 낮음</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -421,14 +421,14 @@ export default function ManualsPage() {
                     value={pdfTags}
                     onChange={(e) => setPdfTags(e.target.value)}
                     placeholder="예: 규정, 원칙"
-                    className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                    className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                   />
                 </div>
               </div>
             </div>
 
             {pdfError && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
                 <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                 <span className="text-red-600 text-sm">{pdfError}</span>
               </div>
@@ -438,7 +438,7 @@ export default function ManualsPage() {
               <Button
                 type="submit"
                 disabled={pdfUploading || !uploadFile}
-                className="flex-1 h-11 rounded-2xl font-semibold"
+                className="flex-1 h-11 rounded-lg font-semibold"
                 style={{ background: "#3E2D9B" }}
               >
                 {pdfUploading
@@ -449,7 +449,7 @@ export default function ManualsPage() {
                 type="button"
                 variant="outline"
                 onClick={() => { setShowFileUpload(false); setPdfError(""); setPdfSuccess(null); setUploadFile(null); setUploadFileType(null) }}
-                className="flex-1 h-11 rounded-2xl font-semibold border-slate-200"
+                className="flex-1 h-11 rounded-lg font-semibold border-slate-200"
               >
                 취소
               </Button>
@@ -460,7 +460,7 @@ export default function ManualsPage() {
 
       {/* Add form */}
       {showForm && (
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
           <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
             <HIcon icon={PlusSignIcon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
             새 매뉴얼 등록
@@ -473,24 +473,24 @@ export default function ManualsPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="예: 환불 정책 절대 원칙"
-                  className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                   required
                 />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-semibold text-gray-700">우선순위 *</Label>
                 <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
-                  <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
+                  <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="high" className="rounded-xl">
+                  <SelectContent className="rounded-lg">
+                    <SelectItem value="high" className="rounded-md">
                       <span className="font-semibold text-red-600">🔴 높음 (High)</span>
                     </SelectItem>
-                    <SelectItem value="medium" className="rounded-xl">
+                    <SelectItem value="medium" className="rounded-md">
                       <span className="font-semibold text-amber-600">🟡 보통 (Medium)</span>
                     </SelectItem>
-                    <SelectItem value="low" className="rounded-xl">
+                    <SelectItem value="low" className="rounded-md">
                       <span className="font-semibold text-gray-600">⚪ 낮음 (Low)</span>
                     </SelectItem>
                   </SelectContent>
@@ -504,7 +504,7 @@ export default function ManualsPage() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="AI가 반드시 따라야 할 학원 운영 지침 및 원칙을 상세히 작성해주세요."
-                className="min-h-[120px] rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] resize-none"
+                className="min-h-[120px] rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] resize-none"
                 required
               />
             </div>
@@ -519,13 +519,13 @@ export default function ManualsPage() {
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="예: 환불, 정책, 수강료"
-                  className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
                 <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                 <span className="text-red-600 text-sm">{error}</span>
               </div>
@@ -535,7 +535,7 @@ export default function ManualsPage() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 h-11 rounded-2xl font-semibold"
+                className="flex-1 h-11 rounded-lg font-semibold"
                 style={{ background: "#3E2D9B" }}
               >
                 {submitting ? "등록 중..." : "등록하기"}
@@ -544,7 +544,7 @@ export default function ManualsPage() {
                 type="button"
                 variant="outline"
                 onClick={() => { setShowForm(false); setError("") }}
-                className="flex-1 h-11 rounded-2xl font-semibold border-slate-200"
+                className="flex-1 h-11 rounded-lg font-semibold border-slate-200"
               >
                 취소
               </Button>
@@ -556,11 +556,11 @@ export default function ManualsPage() {
       {/* List */}
       <div className="space-y-4">
         {loading ? (
-          <div className="bg-white rounded-3xl p-10 text-center shadow-xl shadow-slate-200/60">
+          <div className="bg-white rounded-xl p-10 text-center shadow-xl shadow-slate-200/60">
             <p className="text-gray-400 text-sm">불러오는 중...</p>
           </div>
         ) : items.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center shadow-xl shadow-slate-200/60">
+          <div className="bg-white rounded-xl p-12 text-center shadow-xl shadow-slate-200/60">
             <HIcon icon={BookOpen01Icon} size={36} primary="#C4BEF0" secondary="#E9E7F8" />
             <p className="text-gray-500 font-medium mt-4">등록된 매뉴얼이 없습니다</p>
             <p className="text-gray-400 text-sm mt-1">위 버튼을 눌러 첫 번째 매뉴얼을 추가해보세요.</p>
@@ -576,12 +576,12 @@ export default function ManualsPage() {
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/60 flex gap-5"
+                  className="bg-white rounded-xl p-6 shadow-xl shadow-slate-200/60 flex gap-5"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
                       <span
-                        className="px-2.5 py-1 rounded-xl text-xs font-bold border"
+                        className="px-2.5 py-1 rounded-md text-xs font-bold border"
                         style={{ color: ps.color, background: ps.bg, borderColor: ps.border }}
                       >
                         {ps.label}
@@ -612,7 +612,7 @@ export default function ManualsPage() {
                   </div>
                   <button
                     onClick={() => handleDelete(item.id)}
-                    className="shrink-0 w-9 h-9 rounded-2xl flex items-center justify-center hover:bg-red-50 transition-colors group"
+                    className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors group"
                   >
                     <HIcon
                       icon={Delete01Icon}
@@ -631,9 +631,9 @@ export default function ManualsPage() {
     {/* ── DB 설정 필요 모달 ─────────────────────────────────────────────── */}
     {dbSetupNeeded && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-7 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-7 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-100">
               <HIcon icon={DatabaseIcon} size={20} primary="#D97706" secondary="#FDE68A" />
             </div>
             <div>
@@ -643,7 +643,7 @@ export default function ManualsPage() {
           </div>
 
           {dbSetupDone ? (
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 border border-green-200 mb-4">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200 mb-4">
               <HIcon icon={CheckmarkCircle01Icon} size={20} primary="#10B981" secondary="#6EE7B7" />
               <div>
                 <p className="text-green-700 font-semibold text-sm">설정 완료!</p>
@@ -653,11 +653,11 @@ export default function ManualsPage() {
           ) : (
             <>
               {/* 방법 1: 토큰 자동 설정 */}
-              <div className="border border-slate-100 rounded-2xl p-4 mb-3">
+              <div className="border border-slate-100 rounded-lg p-4 mb-3">
                 <p className="text-xs font-semibold text-slate-700 mb-2">
                   ① Personal Access Token으로 자동 설정
                 </p>
-                <div className="bg-blue-50 rounded-xl p-3 mb-3 text-xs text-blue-700 leading-relaxed">
+                <div className="bg-blue-50 rounded-md p-3 mb-3 text-xs text-blue-700 leading-relaxed">
                   <a
                     href="https://supabase.com/dashboard/account/tokens"
                     target="_blank"
@@ -674,7 +674,7 @@ export default function ManualsPage() {
                     value={dbAccessToken}
                     onChange={(e) => { setDbAccessToken(e.target.value); setDbSetupError("") }}
                     placeholder="sbp_xxxxxxxx..."
-                    className="flex-1 h-9 px-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#3E2D9B]/30"
+                    className="flex-1 h-9 px-3 rounded-md border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#3E2D9B]/30"
                   />
                 </div>
                 {dbSetupError && (
@@ -701,7 +701,7 @@ export default function ManualsPage() {
                     finally { setDbSetupRunning(false) }
                   }}
                   disabled={dbSetupRunning}
-                  className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="w-full h-9 rounded-md text-xs font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
                   style={{ background: "#3E2D9B" }}
                 >
                   <HIcon icon={Settings01Icon} size={13} primary="white" secondary="rgba(255,255,255,0.5)" />
@@ -710,13 +710,13 @@ export default function ManualsPage() {
               </div>
 
               {/* 방법 2: 수동 SQL */}
-              <div className="border border-slate-100 rounded-2xl p-4">
+              <div className="border border-slate-100 rounded-lg p-4">
                 <p className="text-xs font-semibold text-slate-700 mb-2">
                   ② SQL Editor에서 직접 실행
                 </p>
 
                 <div className="relative mb-3">
-                  <pre className="bg-gray-900 text-green-400 text-xs rounded-xl p-3 overflow-auto max-h-32 leading-relaxed whitespace-pre-wrap">
+                  <pre className="bg-gray-900 text-green-400 text-xs rounded-md p-3 overflow-auto max-h-32 leading-relaxed whitespace-pre-wrap">
                     {dbSetupSql}
                   </pre>
                   <button
@@ -725,7 +725,7 @@ export default function ManualsPage() {
                       setSqlCopied(true)
                       setTimeout(() => setSqlCopied(false), 2000)
                     }}
-                    className="absolute top-2 right-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
+                    className="absolute top-2 right-2 px-2.5 py-1 rounded text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
                   >
                     {sqlCopied ? "✓ 복사됨" : "복사"}
                   </button>
@@ -748,7 +748,7 @@ export default function ManualsPage() {
                         setSqlCopied(true)
                         setTimeout(() => setSqlCopied(false), 2000)
                       }}
-                      className="flex items-center justify-center gap-1.5 w-full h-9 rounded-xl text-xs font-semibold border-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white transition-all mb-2"
+                      className="flex items-center justify-center gap-1.5 w-full h-9 rounded-md text-xs font-semibold border-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white transition-all mb-2"
                     >
                       SQL 복사 후 Supabase SQL Editor 열기 →
                     </a>
@@ -757,7 +757,7 @@ export default function ManualsPage() {
 
                 <button
                   onClick={() => setDbSetupDone(true)}
-                  className="w-full h-9 rounded-xl text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="w-full h-9 rounded-md text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   SQL 실행 완료 (업로드 재시도)
                 </button>

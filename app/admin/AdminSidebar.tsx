@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import Link from "next/link"
@@ -107,7 +107,7 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
       {/* Logo + 역할 뱃지 */}
       <div className="px-6 py-7 border-b border-white/10">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0">
+          <div className="w-9 h-9 rounded-md overflow-hidden shrink-0">
             <img src="/logo.png" alt="에듀마인 인사이트 로고" className="w-full h-full object-cover" />
           </div>
           <div>
@@ -119,7 +119,7 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
         </div>
 
         {/* 역할 + 학원 정보 */}
-        <div className="mt-3 px-3 py-2 rounded-xl bg-white/10 border border-white/15">
+        <div className="mt-3 px-3 py-2 rounded-md bg-white/10 border border-white/15">
           <div className="flex items-center gap-1.5 mb-0.5">
             <HIcon
               icon={role === "admin" ? Crown02Icon : role === "director" ? School01Icon : Group01Icon}
@@ -142,7 +142,7 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
         <Link
           href="/"
           onClick={() => setOpen(false)}
-          className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-white/60 hover:bg-white/8 hover:text-white transition-all"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-white/60 hover:bg-white/8 hover:text-white transition-all"
         >
           <HIcon icon={Home01Icon} size={18} primary="rgba(255,255,255,0.6)" secondary="rgba(255,255,255,0.3)" />
           분석 페이지로
@@ -156,7 +156,7 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all group ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${
                 isActive
                   ? "bg-white/15 text-white shadow-sm border border-white/10"
                   : "text-white/60 hover:bg-white/8 hover:text-white"
@@ -179,7 +179,7 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
         <button
           onClick={handleLogout}
           disabled={loggingOut}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-white/60 hover:bg-red-500/15 hover:text-red-300 transition-all text-left"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-white/60 hover:bg-red-500/15 hover:text-red-300 transition-all text-left"
         >
           <HIcon icon={Logout01Icon} size={18} primary="rgba(255,255,255,0.6)" secondary="rgba(255,255,255,0.3)" />
           {loggingOut ? "로그아웃 중..." : "로그아웃"}
@@ -212,7 +212,7 @@ export default function AdminSidebar({ role, academyName, fullName }: Props) {
         </div>
         <button
           onClick={() => setOpen(!open)}
-          className="text-white/80 hover:text-white p-1 rounded-lg transition-colors"
+          className="text-white/80 hover:text-white p-1 rounded transition-colors"
         >
           <HIcon
             icon={open ? ArrowLeft01Icon : Menu01Icon}

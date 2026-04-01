@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -86,7 +86,7 @@ export default function PricingPage() {
       {/* ── 문의 안내 모달 ──────────────────────────────────────────── */}
       {contactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
+          <div className="w-full max-w-sm rounded-xl bg-white p-7 shadow-2xl">
             <h2 className="text-lg font-extrabold text-slate-800 mb-2">
               {contactModal === "pro" ? "Pro 플랜" : "Enterprise 플랜"} 전환 안내
             </h2>
@@ -99,13 +99,13 @@ export default function PricingPage() {
               href={`mailto:support@edumindinsight.com?subject=${encodeURIComponent(
                 (contactModal === "pro" ? "Pro" : "Enterprise") + " 플랜 전환 문의"
               )}`}
-              className="flex items-center justify-center gap-2 w-full rounded-2xl bg-[#3E2D9B] py-3 text-sm font-bold text-white hover:bg-[#2f226e] transition-colors mb-3"
+              className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#3E2D9B] py-3 text-sm font-bold text-white hover:bg-[#2f226e] transition-colors mb-3"
             >
               ✉️ support@edumindinsight.com
             </a>
             <button
               onClick={() => setContactModal(null)}
-              className="w-full rounded-2xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+              className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
             >
               닫기
             </button>
@@ -116,7 +116,7 @@ export default function PricingPage() {
       {/* 뒤로가기 */}
       <button
         onClick={() => router.back()}
-        className="mb-8 flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 mx-auto max-w-4xl"
+        className="mb-8 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 mx-auto max-w-4xl"
         style={{ display: "block" }}
       >
         ← 뒤로가기
@@ -142,7 +142,7 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.key}
-                className={`relative flex flex-col rounded-3xl p-7 shadow-xl transition-all ${
+                className={`relative flex flex-col rounded-xl p-7 shadow-xl transition-all ${
                   plan.highlight
                     ? "border-2 border-[#3E2D9B] bg-[#3E2D9B] text-white shadow-[0_20px_60px_rgba(62,45,155,0.30)]"
                     : "border border-slate-200 bg-white"
@@ -223,7 +223,7 @@ export default function PricingPage() {
                 <button
                   onClick={() => handleUpgrade(plan.key)}
                   disabled={isCurrentLoaded && isCurrent}
-                  className={`mt-8 w-full rounded-2xl py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`mt-8 w-full rounded-lg py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
                     plan.highlight
                       ? "bg-white text-[#3E2D9B] hover:bg-white/90 shadow-lg"
                       : isCurrent

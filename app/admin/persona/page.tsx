@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -110,7 +110,7 @@ export default function PersonaPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-3xl p-12 text-center shadow-xl shadow-slate-200/60">
+        <div className="bg-white rounded-xl p-12 text-center shadow-xl shadow-slate-200/60">
           <p className="text-gray-400 text-sm">불러오는 중...</p>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function PersonaPage() {
     <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
           <HIcon icon={AiBrain01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
         </div>
         <div>
@@ -133,7 +133,7 @@ export default function PersonaPage() {
       </div>
 
       {/* Tone selector */}
-      <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-6">
+      <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-6">
         <div className="flex items-center gap-2 mb-5">
           <HIcon icon={Settings01Icon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
           <h2 className="text-lg font-bold text-gray-900">분석 톤 선택</h2>
@@ -154,7 +154,7 @@ export default function PersonaPage() {
                   className="block cursor-pointer"
                 >
                   <div
-                    className="flex items-center gap-4 p-5 rounded-2xl border-2 transition-all"
+                    className="flex items-center gap-4 p-5 rounded-lg border-2 transition-all"
                     style={{
                       borderColor: isActive ? tone.border : "#E5E7EB",
                       background: isActive ? tone.bg : "white",
@@ -186,7 +186,7 @@ export default function PersonaPage() {
       </div>
 
       {/* Sliders */}
-      <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-6">
+      <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-6">
         <h2 className="text-lg font-bold text-gray-900 mb-6">세부 조정</h2>
 
         <div className="space-y-8">
@@ -194,7 +194,7 @@ export default function PersonaPage() {
             <div className="flex items-center justify-between mb-3">
               <Label className="text-sm font-semibold text-gray-700">공감 강도</Label>
               <span
-                className="text-sm font-bold px-3 py-1 rounded-xl"
+                className="text-sm font-bold px-3 py-1 rounded-md"
                 style={{ color: "#3E2D9B", background: "#F5F3FF" }}
               >
                 {settings.empathyLevel}%
@@ -218,7 +218,7 @@ export default function PersonaPage() {
             <div className="flex items-center justify-between mb-3">
               <Label className="text-sm font-semibold text-gray-700">격식 수준</Label>
               <span
-                className="text-sm font-bold px-3 py-1 rounded-xl"
+                className="text-sm font-bold px-3 py-1 rounded-md"
                 style={{ color: "#0EA5E9", background: "#F0F9FF" }}
               >
                 {settings.formality}%
@@ -241,7 +241,7 @@ export default function PersonaPage() {
       </div>
 
       {/* Custom instructions */}
-      <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-6">
+      <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <h2 className="text-lg font-bold text-gray-900">추가 지침</h2>
           <span className="text-xs text-gray-400 font-normal">(선택사항)</span>
@@ -253,13 +253,13 @@ export default function PersonaPage() {
           value={settings.customInstructions}
           onChange={(e) => setSettings((s) => ({ ...s, customInstructions: e.target.value }))}
           placeholder="예: 이 학원은 '학생 성장 중심'을 핵심 가치로 합니다. 모든 스크립트에 학생의 발전 가능성을 반드시 언급해주세요."
-          className="min-h-[100px] rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] resize-none"
+          className="min-h-[100px] rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] resize-none"
         />
       </div>
 
       {/* Preview card */}
       <div
-        className="rounded-3xl p-6 mb-8 border border-white/10"
+        className="rounded-xl p-6 mb-8 border border-white/10"
         style={{ background: "linear-gradient(135deg, #2A1F7A 0%, #3E2D9B 100%)" }}
       >
         <p className="text-white/60 text-xs font-medium mb-2">현재 설정 미리보기</p>
@@ -275,13 +275,13 @@ export default function PersonaPage() {
 
       {/* Feedback messages */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-2xl bg-red-50 border border-red-100 mb-4">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-100 mb-4">
           <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
           <span className="text-red-600 text-sm">{error}</span>
         </div>
       )}
       {saved && (
-        <div className="flex items-center gap-2 p-4 rounded-2xl bg-green-50 border border-green-100 mb-4">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-green-50 border border-green-100 mb-4">
           <HIcon icon={CheckmarkCircle01Icon} size={16} primary="#10B981" secondary="#A7F3D0" />
           <span className="text-green-700 text-sm font-medium">설정이 저장되었습니다. 다음 분석부터 즉시 반영됩니다.</span>
         </div>
@@ -290,7 +290,7 @@ export default function PersonaPage() {
       <Button
         onClick={handleSave}
         disabled={saving}
-        className="w-full h-12 rounded-2xl font-semibold text-base shadow-lg shadow-purple-200"
+        className="w-full h-12 rounded-lg font-semibold text-base shadow-lg shadow-purple-200"
         style={{ background: saving ? "#9CA3AF" : "#3E2D9B" }}
       >
         {saving ? (

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -71,7 +71,7 @@ export default function AcademiesMonitorPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
             <HIcon icon={School01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           </div>
           <div>
@@ -81,7 +81,7 @@ export default function AcademiesMonitorPage() {
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-all"
         >
           <HIcon icon={ReloadIcon} size={14} primary="#9CA3AF" secondary="#C4BEF0" />
           새로고침
@@ -106,8 +106,8 @@ export default function AcademiesMonitorPage() {
               color: "#0EA5E9",
             },
           ].map((card) => (
-            <div key={card.label} className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/60">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-4"
+            <div key={card.label} className="bg-white rounded-xl p-6 shadow-xl shadow-slate-200/60">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
                 style={{ background: card.color + "1A" }}>
                 <HIcon icon={card.icon} size={20} primary={card.color} secondary={card.color + "80"} />
               </div>
@@ -120,7 +120,7 @@ export default function AcademiesMonitorPage() {
 
       {/* 에러 */}
       {error && (
-        <div className="flex items-center gap-2 p-4 mb-6 rounded-3xl bg-red-50 border border-red-100">
+        <div className="flex items-center gap-2 p-4 mb-6 rounded-xl bg-red-50 border border-red-100">
           <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
           <p className="text-sm text-red-600">{error}</p>
         </div>
@@ -136,12 +136,12 @@ export default function AcademiesMonitorPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="학원 이름 또는 코드로 검색..."
-          className="w-full pl-11 pr-4 h-12 rounded-2xl border border-slate-200 bg-white text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-[#3E2D9B] transition-all"
+          className="w-full pl-11 pr-4 h-12 rounded-lg border border-slate-200 bg-white text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-[#3E2D9B] transition-all"
         />
       </div>
 
       {/* 학원 목록 */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-xl shadow-slate-200/60 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-[#3E2D9B]/20 border-t-[#3E2D9B] rounded-full animate-spin" />
@@ -177,7 +177,7 @@ export default function AcademiesMonitorPage() {
                     }`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#3E2D9B]/10 flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-md bg-[#3E2D9B]/10 flex items-center justify-center shrink-0">
                           <span className="text-sm font-bold text-[#3E2D9B]">
                             {academy.name[0]}
                           </span>
@@ -194,7 +194,7 @@ export default function AcademiesMonitorPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-center">
-                      <span className="font-mono text-sm font-bold text-[#3E2D9B] bg-[#F5F3FF] px-3 py-1 rounded-xl tracking-wider">
+                      <span className="font-mono text-sm font-bold text-[#3E2D9B] bg-[#F5F3FF] px-3 py-1 rounded-md tracking-wider">
                         {academy.code}
                       </span>
                     </td>

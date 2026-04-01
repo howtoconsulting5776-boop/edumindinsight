@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -176,7 +176,7 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "#3E2D9B" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#3E2D9B" }}>
             <HIcon icon={UserGroupIcon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           </div>
           <div className="min-w-0">
@@ -186,7 +186,7 @@ export default function StudentsPage() {
         </div>
         <Button
           onClick={() => setShowForm(!showForm)}
-          className="rounded-2xl shadow-md flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white shrink-0"
+          className="rounded-lg shadow-md flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white shrink-0"
           style={{ background: "#3E2D9B" }}
         >
           <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
@@ -196,7 +196,7 @@ export default function StudentsPage() {
 
       {/* 신규 등록 폼 */}
       {showForm && (
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
           <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
             <HIcon icon={PlusSignIcon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
             새 학생 등록
@@ -209,7 +209,7 @@ export default function StudentsPage() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="홍길동"
-                  className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                   required
                 />
               </div>
@@ -219,7 +219,7 @@ export default function StudentsPage() {
                   value={formGrade}
                   onChange={(e) => setFormGrade(e.target.value)}
                   placeholder="예: 중3, 고1"
-                  className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                 />
               </div>
               <div className="space-y-1.5">
@@ -228,36 +228,36 @@ export default function StudentsPage() {
                   value={formSchool}
                   onChange={(e) => setFormSchool(e.target.value)}
                   placeholder="예: 서울중학교"
-                  className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-semibold text-gray-700">상태</Label>
                 <Select value={formStatus} onValueChange={(v) => setFormStatus(v as Student["status"])}>
-                  <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
+                  <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:border-[#3E2D9B]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="active" className="rounded-xl">재원 중</SelectItem>
-                    <SelectItem value="prospect" className="rounded-xl">상담 중</SelectItem>
-                    <SelectItem value="inactive" className="rounded-xl">휴원</SelectItem>
+                  <SelectContent className="rounded-lg">
+                    <SelectItem value="active" className="rounded-md">재원 중</SelectItem>
+                    <SelectItem value="prospect" className="rounded-md">상담 중</SelectItem>
+                    <SelectItem value="inactive" className="rounded-md">휴원</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             {formError && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
                 <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                 <span className="text-red-600 text-sm">{formError}</span>
               </div>
             )}
 
             <div className="flex gap-3 pt-1">
-              <Button type="submit" disabled={submitting} className="flex-1 h-11 rounded-2xl font-semibold" style={{ background: "#3E2D9B" }}>
+              <Button type="submit" disabled={submitting} className="flex-1 h-11 rounded-lg font-semibold" style={{ background: "#3E2D9B" }}>
                 {submitting ? "등록 중..." : "등록하기"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => { setShowForm(false); setFormError("") }} className="flex-1 h-11 rounded-2xl font-semibold border-slate-200">
+              <Button type="button" variant="outline" onClick={() => { setShowForm(false); setFormError("") }} className="flex-1 h-11 rounded-lg font-semibold border-slate-200">
                 취소
               </Button>
             </div>
@@ -266,7 +266,7 @@ export default function StudentsPage() {
       )}
 
       {/* 검색 · 필터 */}
-      <div className="bg-white rounded-3xl p-5 shadow-xl shadow-slate-200/60 mb-6 flex flex-col sm:flex-row gap-3">
+      <div className="bg-white rounded-xl p-5 shadow-xl shadow-slate-200/60 mb-6 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
             <HIcon icon={Search01Icon} size={16} primary="#9CA3AF" secondary="#C4BEF0" />
@@ -275,7 +275,7 @@ export default function StudentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="이름, 학교로 검색..."
-            className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+            className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
           />
         </div>
         <div className="flex gap-2">
@@ -284,33 +284,33 @@ export default function StudentsPage() {
               <HIcon icon={FilterIcon} size={14} primary="#9CA3AF" secondary="#C4BEF0" />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 w-32">
+              <SelectTrigger className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 w-32">
                 <SelectValue placeholder="상태" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl">
-                <SelectItem value="all" className="rounded-xl">전체 상태</SelectItem>
-                <SelectItem value="active" className="rounded-xl">재원 중</SelectItem>
-                <SelectItem value="prospect" className="rounded-xl">상담 중</SelectItem>
-                <SelectItem value="inactive" className="rounded-xl">휴원</SelectItem>
+              <SelectContent className="rounded-lg">
+                <SelectItem value="all" className="rounded-md">전체 상태</SelectItem>
+                <SelectItem value="active" className="rounded-md">재원 중</SelectItem>
+                <SelectItem value="prospect" className="rounded-md">상담 중</SelectItem>
+                <SelectItem value="inactive" className="rounded-md">휴원</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <Select value={filterRisk} onValueChange={setFilterRisk}>
-            <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 w-32">
+            <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-slate-50 w-32">
               <SelectValue placeholder="위험도" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl">
-              <SelectItem value="all" className="rounded-xl">전체 위험도</SelectItem>
-              <SelectItem value="high" className="rounded-xl">🔴 고위험</SelectItem>
-              <SelectItem value="medium" className="rounded-xl">🟡 중위험</SelectItem>
-              <SelectItem value="low" className="rounded-xl">🟢 저위험</SelectItem>
+            <SelectContent className="rounded-lg">
+              <SelectItem value="all" className="rounded-md">전체 위험도</SelectItem>
+              <SelectItem value="high" className="rounded-md">🔴 고위험</SelectItem>
+              <SelectItem value="medium" className="rounded-md">🟡 중위험</SelectItem>
+              <SelectItem value="low" className="rounded-md">🟢 저위험</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-2xl bg-red-50 border border-red-100 mb-5">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-100 mb-5">
           <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
           <span className="text-red-600 text-sm">{error}</span>
         </div>
@@ -319,11 +319,11 @@ export default function StudentsPage() {
       {/* 학생 목록 */}
       <div className="space-y-3">
         {loading ? (
-          <div className="bg-white rounded-3xl p-10 text-center shadow-xl shadow-slate-200/60">
+          <div className="bg-white rounded-xl p-10 text-center shadow-xl shadow-slate-200/60">
             <p className="text-gray-400 text-sm">불러오는 중...</p>
           </div>
         ) : students.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center shadow-xl shadow-slate-200/60">
+          <div className="bg-white rounded-xl p-12 text-center shadow-xl shadow-slate-200/60">
             <HIcon icon={UserGroupIcon} size={36} primary="#C4BEF0" secondary="#E9E7F8" />
             <p className="text-gray-500 font-medium mt-4">등록된 학생이 없습니다</p>
             <p className="text-gray-400 text-sm mt-1">위 버튼을 눌러 첫 번째 학생을 등록해보세요.</p>
@@ -332,10 +332,10 @@ export default function StudentsPage() {
           students.map((s) => {
             const st = STATUS_LABEL[s.status] ?? STATUS_LABEL.inactive
             return (
-              <div key={s.id} className="bg-white rounded-3xl p-4 shadow-xl shadow-slate-200/60">
+              <div key={s.id} className="bg-white rounded-xl p-4 shadow-xl shadow-slate-200/60">
                 {/* 상단: 아바타 + 이름·상태 + 삭제 */}
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "#F0EFFB" }}>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#F0EFFB" }}>
                     <HIcon icon={UserIcon} size={20} primary="#3E2D9B" secondary="#C4BEF0" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -353,7 +353,7 @@ export default function StudentsPage() {
                   </div>
                   <button
                     onClick={() => handleDelete(s.id, s.name)}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-red-50 transition-colors shrink-0"
+                    className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-red-50 transition-colors shrink-0"
                   >
                     <HIcon icon={Delete01Icon} size={16} primary="#D1D5DB" secondary="#E5E7EB" />
                   </button>
@@ -384,7 +384,7 @@ export default function StudentsPage() {
                 <div className="mt-3 pt-3 border-t border-slate-100">
                   <button
                     onClick={() => openHistory(s)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-semibold border border-purple-100 text-purple-600 hover:bg-purple-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold border border-purple-100 text-purple-600 hover:bg-purple-50 transition-colors"
                   >
                     이력 보기
                     <HIcon icon={ArrowRight01Icon} size={13} primary="#7C3AED" secondary="#C4B5FD" />
@@ -400,11 +400,11 @@ export default function StudentsPage() {
     {/* ── 상담 이력 모달 ─────────────────────────────────────────────────────── */}
     {historyStudent && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           {/* 헤더 */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "#F0EFFB" }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#F0EFFB" }}>
                 <HIcon icon={UserIcon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
               </div>
               <div>
@@ -414,23 +414,23 @@ export default function StudentsPage() {
                 </p>
               </div>
             </div>
-            <button onClick={() => setHistoryStudent(null)} className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-slate-100 transition-colors text-lg font-bold">&times;</button>
+            <button onClick={() => setHistoryStudent(null)} className="w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-slate-100 transition-colors text-lg font-bold">&times;</button>
           </div>
 
           {/* 통계 요약 */}
               {historyStats && (historyStats.totalSessions ?? 0) > 0 && (
             <div className="grid grid-cols-3 gap-2 mb-5">
-              <div className="bg-slate-50 rounded-2xl p-3 text-center">
+              <div className="bg-slate-50 rounded-lg p-3 text-center">
                 <p className="text-[10px] text-gray-500 mb-1">총 상담</p>
                 <p className="text-lg font-bold text-gray-800">{historyStats.totalSessions ?? 0}</p>
               </div>
-              <div className="bg-slate-50 rounded-2xl p-3 text-center">
+              <div className="bg-slate-50 rounded-lg p-3 text-center">
                 <p className="text-[10px] text-gray-500 mb-1">평균 위험도</p>
                 <p className="text-lg font-bold" style={{ color: riskColor(historyStats.avgRiskScore) }}>
                   {historyStats.avgRiskScore != null ? historyStats.avgRiskScore.toFixed(0) : "-"}
                 </p>
               </div>
-              <div className="bg-slate-50 rounded-2xl p-3 text-center">
+              <div className="bg-slate-50 rounded-lg p-3 text-center">
                 <p className="text-[10px] text-gray-500 mb-1">최고 위험도</p>
                 <p className="text-lg font-bold" style={{ color: riskColor(historyStats.maxRiskScore) }}>
                   {historyStats.maxRiskScore != null ? historyStats.maxRiskScore.toFixed(0) : "-"}
@@ -443,7 +443,7 @@ export default function StudentsPage() {
           {historyLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse h-20 rounded-2xl bg-slate-100" />
+                <div key={i} className="animate-pulse h-20 rounded-lg bg-slate-100" />
               ))}
             </div>
           ) : historyItems.length === 0 ? (
@@ -485,7 +485,7 @@ function HistoryCard({
     : h.originalText
 
   return (
-    <div className="border border-slate-100 rounded-2xl p-4 hover:border-purple-100 transition-colors">
+    <div className="border border-slate-100 rounded-lg p-4 hover:border-purple-100 transition-colors">
       {/* 날짜 · 대상 · 모드 · 위험도 */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -524,7 +524,7 @@ function HistoryCard({
       {hasContent && (
         <div className="mb-2">
           <div
-            className="text-xs text-gray-600 leading-relaxed bg-slate-50 rounded-xl px-3 py-2 whitespace-pre-wrap"
+            className="text-xs text-gray-600 leading-relaxed bg-slate-50 rounded-md px-3 py-2 whitespace-pre-wrap"
           >
             {expanded ? h.originalText : preview}
           </div>
@@ -543,7 +543,7 @@ function HistoryCard({
       {h.keywords && h.keywords.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {(h.keywords as string[]).slice(0, 8).map((k: string) => (
-            <span key={k} className="text-xs px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600">
+            <span key={k} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
               {k}
             </span>
           ))}

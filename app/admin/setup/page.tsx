@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 
@@ -26,13 +26,13 @@ function StorageBucketSetup() {
       <button
         onClick={handleCreate}
         disabled={status === "loading"}
-        className="w-full h-11 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
+        className="w-full h-11 rounded-lg text-sm font-semibold text-white disabled:opacity-40 transition-all"
         style={{ background: "#3E2D9B" }}
       >
         {status === "loading" ? "생성 중..." : "Storage 버킷 자동 생성"}
       </button>
       {msg && (
-        <div className={`mt-3 p-3 rounded-2xl text-sm ${status === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+        <div className={`mt-3 p-3 rounded-lg text-sm ${status === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
           {status === "ok" ? "✓ " : "✗ "}{msg}
         </div>
       )}
@@ -103,7 +103,7 @@ export default function SetupPage() {
       </div>
 
       {/* 방법 1: Personal Access Token 자동 설정 */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mb-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 rounded-full bg-[#3E2D9B] text-white text-xs font-bold flex items-center justify-center">1</span>
           <h2 className="font-semibold text-slate-800">자동 설정 (Personal Access Token)</h2>
@@ -113,7 +113,7 @@ export default function SetupPage() {
         </p>
 
         {/* Token 발급 안내 */}
-        <div className="bg-blue-50 rounded-2xl p-4 mb-4 text-xs text-blue-700 leading-relaxed">
+        <div className="bg-blue-50 rounded-lg p-4 mb-4 text-xs text-blue-700 leading-relaxed">
           <strong>토큰 발급 방법:</strong><br />
           1.{" "}
           <a
@@ -135,11 +135,11 @@ export default function SetupPage() {
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
             placeholder="sbp_xxxxxxxx..."
-            className="flex-1 h-11 px-4 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E2D9B]/30"
+            className="flex-1 h-11 px-4 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E2D9B]/30"
           />
           <button
             onClick={() => setShowToken((v) => !v)}
-            className="px-4 rounded-2xl border border-slate-200 text-xs text-slate-500 hover:bg-slate-50"
+            className="px-4 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50"
           >
             {showToken ? "숨기기" : "보기"}
           </button>
@@ -148,14 +148,14 @@ export default function SetupPage() {
         <button
           onClick={handleAutoSetup}
           disabled={running || !accessToken.trim()}
-          className="w-full h-11 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
+          className="w-full h-11 rounded-lg text-sm font-semibold text-white disabled:opacity-40 transition-all"
           style={{ background: "#3E2D9B" }}
         >
           {running ? "설정 중..." : "자동 설정 실행"}
         </button>
 
         {result && (
-          <div className={`mt-3 p-3 rounded-2xl text-sm ${result.success ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+          <div className={`mt-3 p-3 rounded-lg text-sm ${result.success ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
             {result.success ? "✓ " : "⚠ "}{result.message}
             {result.success && (
               <div className="mt-1 text-xs">파일 업로드를 다시 시도해보세요.</div>
@@ -165,7 +165,7 @@ export default function SetupPage() {
       </div>
 
       {/* 방법 2: Supabase SQL Editor 직접 실행 */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 rounded-full bg-[#3E2D9B] text-white text-xs font-bold flex items-center justify-center">2</span>
           <h2 className="font-semibold text-slate-800">수동 설정 (SQL Editor 직접 실행)</h2>
@@ -180,12 +180,12 @@ export default function SetupPage() {
           target="_blank"
           rel="noreferrer"
           onClick={handleCopy}
-          className="flex items-center justify-center gap-2 w-full h-11 rounded-2xl text-sm font-semibold border-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white transition-all mb-4"
+          className="flex items-center justify-center gap-2 w-full h-11 rounded-lg text-sm font-semibold border-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white transition-all mb-4"
         >
           SQL 복사 후 Supabase SQL Editor 열기 →
         </a>
 
-        <div className="bg-blue-50 rounded-2xl p-4 mb-4 text-xs text-blue-700 leading-relaxed">
+        <div className="bg-blue-50 rounded-lg p-4 mb-4 text-xs text-blue-700 leading-relaxed">
           <strong>실행 순서:</strong><br />
           1. 위 버튼 클릭 → SQL이 자동으로 클립보드에 복사됩니다<br />
           2. Supabase SQL Editor에서 <strong>Ctrl+V</strong> (붙여넣기)<br />
@@ -194,12 +194,12 @@ export default function SetupPage() {
         </div>
 
         <div className="relative">
-          <pre className="bg-gray-950 text-green-400 text-xs rounded-2xl p-5 overflow-auto max-h-72 leading-relaxed whitespace-pre-wrap font-mono">
+          <pre className="bg-gray-950 text-green-400 text-xs rounded-lg p-5 overflow-auto max-h-72 leading-relaxed whitespace-pre-wrap font-mono">
             {sql || "SQL을 불러오는 중..."}
           </pre>
           <button
             onClick={handleCopy}
-            className="absolute top-3 right-3 px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
+            className="absolute top-3 right-3 px-4 py-2 rounded-md text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
           >
             {copied ? "✓ 복사됨!" : "전체 복사"}
           </button>
@@ -207,7 +207,7 @@ export default function SetupPage() {
       </div>
 
       {/* Storage 버킷 생성 */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mt-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mt-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 rounded-full bg-[#3E2D9B] text-white text-xs font-bold flex items-center justify-center">3</span>
           <h2 className="font-semibold text-slate-800">Storage 버킷 생성 (파일 업로드용)</h2>

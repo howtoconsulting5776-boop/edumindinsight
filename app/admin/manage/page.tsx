@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -95,7 +95,7 @@ export default function ManagePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
             <HIcon icon={Group01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           </div>
           <div>
@@ -105,7 +105,7 @@ export default function ManagePage() {
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-all"
         >
             <HIcon icon={ReloadIcon} size={14} primary="#9CA3AF" secondary="#C4BEF0" />
           새로고침
@@ -114,7 +114,7 @@ export default function ManagePage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-4 mb-6 rounded-3xl bg-red-50 border border-red-100">
+        <div className="flex items-center gap-2 p-4 mb-6 rounded-xl bg-red-50 border border-red-100">
           <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
           <p className="text-sm text-red-600">{error}</p>
         </div>
@@ -122,12 +122,12 @@ export default function ManagePage() {
 
       {/* 학원 정보 + 초대 코드 */}
       {academy && (
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-6">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-6">
           <div className="flex items-center gap-3 mb-5">
             <HIcon icon={School01Icon} size={20} primary="#3E2D9B" secondary="#C4BEF0" />
             <h2 className="text-lg font-bold text-gray-900">학원 정보</h2>
           </div>
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F5F3FF] border border-[#3E2D9B]/15">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-[#F5F3FF] border border-[#3E2D9B]/15">
             <div>
               <p className="text-xs text-[#6B5BC4] font-semibold mb-1">선생님 초대 코드</p>
               <p className="font-mono font-bold text-2xl text-[#3E2D9B] tracking-widest">{academy.code}</p>
@@ -135,7 +135,7 @@ export default function ManagePage() {
             </div>
             <button
               onClick={() => copyCode(academy.code)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-semibold text-sm transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all"
               style={{
                 background: copiedCode ? "#10B981" : "#3E2D9B",
                 color: "white",
@@ -152,7 +152,7 @@ export default function ManagePage() {
       )}
 
       {/* 선생님 목록 */}
-      <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60">
+      <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <HIcon icon={Group01Icon} size={20} primary="#3E2D9B" secondary="#C4BEF0" />
@@ -178,8 +178,8 @@ export default function ManagePage() {
         ) : (
           <ul className="space-y-3">
             {teachers.map((teacher) => (
-              <li key={teacher.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
-                <div className="w-10 h-10 rounded-2xl bg-[#3E2D9B]/10 flex items-center justify-center shrink-0">
+              <li key={teacher.id} className="flex items-center gap-4 p-4 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-[#3E2D9B]/10 flex items-center justify-center shrink-0">
                   <span className="text-sm font-bold text-[#3E2D9B]">
                     {(teacher.full_name ?? teacher.email)[0].toUpperCase()}
                   </span>
@@ -197,7 +197,7 @@ export default function ManagePage() {
                   <button
                     onClick={() => removeTeacher(teacher.id)}
                     disabled={removingId === teacher.id}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
+                    className="p-2 rounded-md text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
                     title="학원에서 제외"
                   >
                     <HIcon icon={Delete01Icon} size={16} primary="currentColor" secondary="currentColor" />

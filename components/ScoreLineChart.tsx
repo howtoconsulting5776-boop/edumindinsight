@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import {
@@ -47,7 +47,7 @@ const LINES = [
 function CustomTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-3 shadow-xl text-xs space-y-1.5">
+    <div className="rounded-lg border border-slate-100 bg-white p-3 shadow-xl text-xs space-y-1.5">
       <p className="font-bold text-slate-600 mb-2">{label}</p>
       {payload.map((item) => (
         <div key={item.name} className="flex items-center gap-2">
@@ -63,10 +63,10 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
 function Skeleton() {
   return (
     <div className="flex gap-4 animate-pulse">
-      <div className="flex-1 rounded-2xl bg-slate-100 h-[220px]" />
+      <div className="flex-1 rounded-lg bg-slate-100 h-[220px]" />
       <div className="w-32 shrink-0 space-y-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="rounded-xl bg-slate-100 h-16" />
+          <div key={i} className="rounded-md bg-slate-100 h-16" />
         ))}
       </div>
     </div>
@@ -162,7 +162,7 @@ export function ScoreLineChart({ studentId, refreshToken }: Props) {
         {LINES.map(({ key, label, color }) => (
           <div
             key={key}
-            className="rounded-2xl bg-slate-50 px-3 py-3 space-y-1"
+            className="rounded-lg bg-slate-50 px-3 py-3 space-y-1"
           >
             <div className="flex items-center gap-1.5">
               <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />

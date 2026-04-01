@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -128,7 +128,7 @@ function RiskBadge({ score }: { score: number }) {
 // ── 위험 학생 카드 ───────────────────────────────────────────────────────────
 function RiskStudentCard({ s, rank }: { s: RiskStudent; rank: number }) {
   return (
-    <div className="flex items-start gap-3 bg-white rounded-lg p-4 shadow-sm border border-slate-100 hover:border-red-100 transition-colors">
+    <div className="flex items-start gap-3 bg-white rounded p-4 shadow-sm border border-slate-100 hover:border-red-100 transition-colors">
       {/* 순위 */}
       <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-600 text-xs font-bold mt-0.5">
         {rank}
@@ -186,7 +186,7 @@ function SectionCard({ title, icon, children, accent }: {
 }) {
   return (
     <div
-      className="rounded-xl bg-white p-6 shadow-xl shadow-slate-200/60"
+      className="rounded-md bg-white p-6 shadow-xl shadow-slate-200/60"
       style={accent ? { borderTop: `4px solid ${accent}` } : {}}
     >
       <div className="flex items-center gap-2 mb-5">
@@ -200,7 +200,7 @@ function SectionCard({ title, icon, children, accent }: {
 
 // ── 스켈레톤 ────────────────────────────────────────────────────────────────
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-slate-200 rounded-xl ${className ?? ""}`} />
+  return <div className={`animate-pulse bg-slate-200 rounded-md ${className ?? ""}`} />
 }
 
 // ── 메인 페이지 ──────────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ export default function AcademyReportPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-700">
+        <div className="rounded bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -329,7 +329,7 @@ export default function AcademyReportPage() {
         ] as const).map((item) => (
           <div
             key={item.label}
-            className="rounded-lg p-4 flex flex-col gap-2"
+            className="rounded p-4 flex flex-col gap-2"
             style={{ background: item.color }}
           >
             <div className="flex items-center justify-between">

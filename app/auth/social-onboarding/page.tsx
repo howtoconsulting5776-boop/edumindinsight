@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -128,7 +128,7 @@ export default function SocialOnboardingPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto mb-4"
             style={{ background: "linear-gradient(135deg, #3E2D9B, #5A44C4)" }}
           >
             <HIcon icon={School01Icon} size={28} primary="white" secondary="rgba(255,255,255,0.5)" />
@@ -142,7 +142,7 @@ export default function SocialOnboardingPage() {
           <p className="mt-1 text-xs text-gray-400">Free 플랜으로 바로 시작합니다 (월 10회 무료)</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/80 p-8 border border-slate-100/50">
+        <div className="bg-white rounded-xl shadow-xl shadow-slate-200/80 p-8 border border-slate-100/50">
           {/* 역할 선택 */}
           <div className="mb-6">
             <Label className="text-sm font-semibold text-gray-700 block mb-3">직책을 선택해주세요</Label>
@@ -160,7 +160,7 @@ export default function SocialOnboardingPage() {
                       setFoundAcademy(null)
                       setError("")
                     }}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-sm font-semibold ${
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all text-sm font-semibold ${
                       isActive
                         ? "border-[#3E2D9B] bg-[#F5F3FF] text-[#3E2D9B]"
                         : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
@@ -195,7 +195,7 @@ export default function SocialOnboardingPage() {
                     value={academyName}
                     onChange={(e) => setAcademyName(e.target.value)}
                     placeholder="예) 에듀마인 학원"
-                    className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
+                    className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
                   />
                 </div>
                 <p className="text-xs text-gray-400 pl-1">가입 후 선생님을 초대할 코드가 자동 생성됩니다.</p>
@@ -219,7 +219,7 @@ export default function SocialOnboardingPage() {
                         setFoundAcademy(null)
                       }}
                       placeholder="학원장에게 받은 코드 입력"
-                      className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all font-mono tracking-wider"
+                      className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all font-mono tracking-wider"
                       maxLength={8}
                     />
                   </div>
@@ -227,7 +227,7 @@ export default function SocialOnboardingPage() {
                     type="button"
                     onClick={searchAcademy}
                     disabled={searching || !academyCode.trim()}
-                    className="h-12 px-4 rounded-2xl text-sm font-semibold text-white disabled:opacity-50 transition-all shrink-0"
+                    className="h-12 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all shrink-0"
                     style={{ background: "#3E2D9B" }}
                   >
                     {searching ? (
@@ -238,7 +238,7 @@ export default function SocialOnboardingPage() {
                   </button>
                 </div>
                 {foundAcademy && (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 border border-green-100">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
                     <HIcon icon={CheckmarkCircle01Icon} size={18} primary="#10B981" secondary="#A7F3D0" />
                     <div>
                       <p className="text-sm font-semibold text-green-800">{foundAcademy.name}</p>
@@ -250,7 +250,7 @@ export default function SocialOnboardingPage() {
             )}
 
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
                 <HIcon icon={Alert02Icon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                 <span className="text-red-600 text-sm">{error}</span>
               </div>
@@ -259,7 +259,7 @@ export default function SocialOnboardingPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 rounded-2xl font-semibold text-base shadow-lg shadow-purple-200 transition-all"
+              className="w-full h-12 rounded-lg font-semibold text-base shadow-lg shadow-purple-200 transition-all"
               style={{ background: loading ? "#9CA3AF" : "#3E2D9B" }}
             >
               {loading ? (

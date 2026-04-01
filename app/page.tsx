@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -217,7 +217,7 @@ function RiskBadge({ score }: { score: number }) {
 function ScriptCard({ script }: { script: AnalysisResult["scripts"][0] }) {
   const meta = SCRIPT_META[script.type] ?? SCRIPT_META["공감형"]
   return (
-    <div className={`rounded-2xl border p-5 ${meta.bg} ${meta.border}`}>
+    <div className={`rounded-lg border p-5 ${meta.bg} ${meta.border}`}>
       <div className="mb-3 flex items-center gap-2.5">
         <HIcon icon={meta.icon} size={22} primary={meta.primary} secondary={meta.secondary} />
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${meta.badgeBg} ${meta.badgeText}`}>
@@ -245,7 +245,7 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-3xl bg-white p-7 shadow-xl shadow-slate-200/60">
+    <div className="rounded-xl bg-white p-7 shadow-xl shadow-slate-200/60">
       <div className="mb-6 flex items-center gap-3">
         <HIcon icon={icon} size={28} primary={primary} secondary={secondary} />
         <h3 className="text-xl font-bold tracking-tight text-slate-900">{title}</h3>
@@ -419,7 +419,7 @@ export default function Home() {
                   onClick={handleLogout}
                   disabled={loggingOut}
                   title="로그아웃"
-                  className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
                 >
                   <HIcon
                     icon={Logout01Icon}
@@ -452,13 +452,13 @@ export default function Home() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-500">학생 선택</label>
                 <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
-                  <SelectTrigger className="h-10 rounded-2xl border-slate-200 bg-[#F8F8FF] text-xs focus:border-[#3E2D9B]">
+                  <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-[#F8F8FF] text-xs focus:border-[#3E2D9B]">
                     <SelectValue placeholder="학생 선택 (선택사항)" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="none" className="rounded-xl text-xs">선택 안 함</SelectItem>
+                  <SelectContent className="rounded-lg">
+                    <SelectItem value="none" className="rounded-md text-xs">선택 안 함</SelectItem>
                     {students.map((s) => (
-                      <SelectItem key={s.id} value={s.id} className="rounded-xl text-xs">
+                      <SelectItem key={s.id} value={s.id} className="rounded-md text-xs">
                         {s.name}{s.grade ? ` (${s.grade})` : ""}
                       </SelectItem>
                     ))}
@@ -473,15 +473,15 @@ export default function Home() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-500">상담 대상</label>
                 <Select value={contactType} onValueChange={setContactType}>
-                  <SelectTrigger className="h-10 rounded-2xl border-slate-200 bg-[#F8F8FF] text-xs focus:border-[#3E2D9B]">
+                  <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-[#F8F8FF] text-xs focus:border-[#3E2D9B]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="student" className="rounded-xl text-xs">학생</SelectItem>
-                    <SelectItem value="father"  className="rounded-xl text-xs">아버지</SelectItem>
-                    <SelectItem value="mother"  className="rounded-xl text-xs">어머니</SelectItem>
-                    <SelectItem value="guardian" className="rounded-xl text-xs">보호자</SelectItem>
-                    <SelectItem value="other"   className="rounded-xl text-xs">기타</SelectItem>
+                  <SelectContent className="rounded-lg">
+                    <SelectItem value="student" className="rounded-md text-xs">학생</SelectItem>
+                    <SelectItem value="father"  className="rounded-md text-xs">아버지</SelectItem>
+                    <SelectItem value="mother"  className="rounded-md text-xs">어머니</SelectItem>
+                    <SelectItem value="guardian" className="rounded-md text-xs">보호자</SelectItem>
+                    <SelectItem value="other"   className="rounded-md text-xs">기타</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -495,7 +495,7 @@ export default function Home() {
               </label>
               <Textarea
                 placeholder={`학부모와 나눈 상담 내용을 입력하세요.\n예) "우리 아이 성적이 왜 이렇게 안 오르죠? 다른 학원 친구들은 다 올랐다던데..."`}
-                className="min-h-40 resize-none rounded-2xl border-slate-200 bg-[#F8F8FF] text-sm leading-relaxed shadow-none focus-visible:border-[#3E2D9B] focus-visible:ring-[#3E2D9B]/20 md:min-h-52"
+                className="min-h-40 resize-none rounded-lg border-slate-200 bg-[#F8F8FF] text-sm leading-relaxed shadow-none focus-visible:border-[#3E2D9B] focus-visible:ring-[#3E2D9B]/20 md:min-h-52"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 disabled={isAnalyzing}
@@ -506,7 +506,7 @@ export default function Home() {
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-slate-500">분석 모드</label>
               <Tabs value={mode} onValueChange={(v) => setMode(v as AnalysisMode)}>
-                <TabsList className="w-full rounded-xl bg-[#F0EFFB]">
+                <TabsList className="w-full rounded-md bg-[#F0EFFB]">
                   <TabsTrigger value="general" className="flex-1 gap-1.5 text-xs data-active:bg-white data-active:text-[#3E2D9B] data-active:font-bold">
                     <HIcon icon={MagicWand01Icon} size={13} primary="#3E2D9B" secondary="#C4BEF0" />일반 상담
                   </TabsTrigger>
@@ -527,7 +527,7 @@ export default function Home() {
             <button
               onClick={handleAnalyze}
               disabled={isAnalyzing || !text.trim() || (retryCountdown !== null && retryCountdown > 0)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg py-4 text-sm font-bold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: "#3E2D9B", boxShadow: "0 8px 24px rgba(62,45,155,0.30)" }}
             >
               {isAnalyzing ? (
@@ -547,7 +547,7 @@ export default function Home() {
 
             {/* Loading steps */}
             {isAnalyzing && (
-              <div className="space-y-2 rounded-2xl bg-[#F0EFFB] p-4">
+              <div className="space-y-2 rounded-lg bg-[#F0EFFB] p-4">
                 {currentSteps.map((step, i) => {
                   const done = i < statusStep
                   const active = i === statusStep
@@ -582,7 +582,7 @@ export default function Home() {
       >
         {/* Error */}
         {error && (
-          <Alert variant="destructive" className="mb-8 rounded-3xl border-0 shadow-xl">
+          <Alert variant="destructive" className="mb-8 rounded-xl border-0 shadow-xl">
             <HIcon icon={AlertDiamondIcon} size={16} primary="#dc2626" secondary="#fecaca" />
             <AlertTitle>분석 실패</AlertTitle>
             <AlertDescription className="space-y-1.5">
@@ -601,7 +601,7 @@ export default function Home() {
 
         {/* Empty state */}
         {!result && !isAnalyzing && !error && (
-          <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#C4BEF0] p-10 text-center md:min-h-[calc(100vh-80px)]">
+          <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#C4BEF0] p-10 text-center md:min-h-[calc(100vh-80px)]">
             <div className="mb-4 rounded-full p-5" style={{ backgroundColor: "#E8E5FF" }}>
               <HIcon icon={AiBrain01Icon} size={40} primary="#3E2D9B" secondary="#C4BEF0" />
             </div>
@@ -714,7 +714,7 @@ export default function Home() {
 
             {/* ── 4. AI 심리 분석 ── */}
             <SectionCard icon={AiBrain01Icon} title="AI 심리 분석">
-              <div className="rounded-2xl p-5" style={{ backgroundColor: "#EEF0FF" }}>
+              <div className="rounded-lg p-5" style={{ backgroundColor: "#EEF0FF" }}>
                 <div className="mb-2 flex items-center gap-2">
                   <HIcon icon={Comment01Icon} size={16} primary="#3E2D9B" secondary="#C4BEF0" />
                   <span className="text-sm font-bold" style={{ color: "#3E2D9B" }}>학부모 숨은 의도</span>
@@ -733,7 +733,7 @@ export default function Home() {
               {/* Mobile: Tabs */}
               <div className="md:hidden">
                 <Tabs defaultValue="공감형">
-                  <TabsList className="mb-4 w-full rounded-xl bg-[#F0EFFB]">
+                  <TabsList className="mb-4 w-full rounded-md bg-[#F0EFFB]">
                     {result.scripts.map((s) => (
                       <TabsTrigger key={s.type} value={s.type} className="flex-1 text-xs">
                         {s.type}
@@ -758,7 +758,7 @@ export default function Home() {
 
             {/* ── 6. 강사 위로 한마디 ── */}
             <div
-              className="relative overflow-hidden rounded-3xl p-8 text-center text-white shadow-2xl"
+              className="relative overflow-hidden rounded-xl p-8 text-center text-white shadow-2xl"
               style={{
                 backgroundColor: "#3E2D9B",
                 boxShadow: "0 20px 60px rgba(62,45,155,0.40)",

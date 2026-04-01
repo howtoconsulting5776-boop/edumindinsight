@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -186,7 +186,7 @@ export default function CasesPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
             <HIcon icon={CheckmarkBadge01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           </div>
           <div>
@@ -196,7 +196,7 @@ export default function CasesPage() {
         </div>
         <Button
           onClick={() => setShowForm(!showForm)}
-          className="rounded-2xl shadow-md flex items-center gap-2"
+          className="rounded-lg shadow-md flex items-center gap-2"
           style={{ background: "#3E2D9B" }}
         >
           <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
@@ -206,7 +206,7 @@ export default function CasesPage() {
 
       {/* Add form */}
       {showForm && (
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 mb-8 border border-purple-100">
           <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
             <HIcon icon={PlusSignIcon} size={18} primary="#3E2D9B" secondary="#C4BEF0" />
             새 성공 사례 등록
@@ -219,20 +219,20 @@ export default function CasesPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="예: 성적 정체기 이탈 방지 성공 사례"
-                  className="h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                   required
                 />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-semibold text-gray-700">우선순위 *</Label>
                 <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
-                  <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50">
+                  <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-slate-50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="high" className="rounded-xl">🔴 높음</SelectItem>
-                    <SelectItem value="medium" className="rounded-xl">🟡 보통</SelectItem>
-                    <SelectItem value="low" className="rounded-xl">⚪ 낮음</SelectItem>
+                  <SelectContent className="rounded-lg">
+                    <SelectItem value="high" className="rounded-md">🔴 높음</SelectItem>
+                    <SelectItem value="medium" className="rounded-md">🟡 보통</SelectItem>
+                    <SelectItem value="low" className="rounded-md">⚪ 낮음</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -241,7 +241,7 @@ export default function CasesPage() {
             {/* 3-step form */}
             <div className="space-y-4">
               {STEP_STYLE.map((step, idx) => (
-                <div key={step.field} className="rounded-2xl overflow-hidden border border-slate-100">
+                <div key={step.field} className="rounded-lg overflow-hidden border border-slate-100">
                   <div
                     className="flex items-center gap-2 px-4 py-2.5"
                     style={{ background: step.bg }}
@@ -287,23 +287,23 @@ export default function CasesPage() {
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="예: 성적, 이탈방지, 데이터"
-                  className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+                  className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
                 <HIcon icon={AlertDiamondIcon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                 <span className="text-red-600 text-sm">{error}</span>
               </div>
             )}
 
             <div className="flex gap-3 pt-1">
-              <Button type="submit" disabled={submitting} className="flex-1 h-11 rounded-2xl font-semibold" style={{ background: "#3E2D9B" }}>
+              <Button type="submit" disabled={submitting} className="flex-1 h-11 rounded-lg font-semibold" style={{ background: "#3E2D9B" }}>
                 {submitting ? "등록 중..." : "사례 등록"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => { setShowForm(false); setError("") }} className="flex-1 h-11 rounded-2xl font-semibold border-slate-200">
+              <Button type="button" variant="outline" onClick={() => { setShowForm(false); setError("") }} className="flex-1 h-11 rounded-lg font-semibold border-slate-200">
                 취소
               </Button>
             </div>
@@ -312,7 +312,7 @@ export default function CasesPage() {
       )}
 
       {/* Search & Filter */}
-      <div className="bg-white rounded-3xl p-5 shadow-xl shadow-slate-200/60 mb-6 flex flex-col sm:flex-row gap-3">
+      <div className="bg-white rounded-xl p-5 shadow-xl shadow-slate-200/60 mb-6 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
             <HIcon icon={Search01Icon} size={16} primary="#9CA3AF" secondary="#C4BEF0" />
@@ -321,7 +321,7 @@ export default function CasesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="제목, 내용, 태그로 검색..."
-            className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
+            className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B]"
           />
         </div>
         <div className="relative">
@@ -329,14 +329,14 @@ export default function CasesPage() {
             <HIcon icon={FilterIcon} size={15} primary="#9CA3AF" secondary="#C4BEF0" />
           </div>
           <Select value={filterPriority} onValueChange={(v) => setFilterPriority(v as typeof filterPriority)}>
-            <SelectTrigger className="pl-9 h-11 rounded-2xl border-slate-200 bg-slate-50 w-40">
+            <SelectTrigger className="pl-9 h-11 rounded-lg border-slate-200 bg-slate-50 w-40">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl">
-              <SelectItem value="all" className="rounded-xl">전체</SelectItem>
-              <SelectItem value="high" className="rounded-xl">🔴 높음</SelectItem>
-              <SelectItem value="medium" className="rounded-xl">🟡 보통</SelectItem>
-              <SelectItem value="low" className="rounded-xl">⚪ 낮음</SelectItem>
+            <SelectContent className="rounded-lg">
+              <SelectItem value="all" className="rounded-md">전체</SelectItem>
+              <SelectItem value="high" className="rounded-md">🔴 높음</SelectItem>
+              <SelectItem value="medium" className="rounded-md">🟡 보통</SelectItem>
+              <SelectItem value="low" className="rounded-md">⚪ 낮음</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -345,11 +345,11 @@ export default function CasesPage() {
       {/* Case list */}
       <div className="space-y-5">
         {loading ? (
-          <div className="bg-white rounded-3xl p-10 text-center shadow-xl shadow-slate-200/60">
+          <div className="bg-white rounded-xl p-10 text-center shadow-xl shadow-slate-200/60">
             <p className="text-gray-400 text-sm">불러오는 중...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center shadow-xl shadow-slate-200/60">
+          <div className="bg-white rounded-xl p-12 text-center shadow-xl shadow-slate-200/60">
             <HIcon icon={CheckmarkBadge01Icon} size={36} primary="#C4BEF0" secondary="#E9E7F8" />
             <p className="text-gray-500 font-medium mt-4">
               {search || filterPriority !== "all" ? "검색 결과가 없습니다" : "등록된 사례가 없습니다"}
@@ -357,10 +357,10 @@ export default function CasesPage() {
           </div>
         ) : (
           filtered.map((item) => (
-            <div key={item.id} className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/60">
+            <div key={item.id} className="bg-white rounded-xl p-6 shadow-xl shadow-slate-200/60">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2.5 py-1 rounded-xl text-xs font-bold ${
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
                     item.priority === "high" ? "text-red-600 bg-red-50 border border-red-100" :
                     item.priority === "medium" ? "text-amber-600 bg-amber-50 border border-amber-100" :
                     "text-gray-600 bg-gray-50 border border-gray-100"
@@ -371,7 +371,7 @@ export default function CasesPage() {
                 </div>
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="shrink-0 w-9 h-9 rounded-2xl flex items-center justify-center hover:bg-red-50 transition-colors"
+                  className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors"
                 >
                   <HIcon icon={Delete01Icon} size={18} primary="#D1D5DB" secondary="#E5E7EB" />
                 </button>

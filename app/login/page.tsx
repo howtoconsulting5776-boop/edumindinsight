@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -355,7 +355,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 text-center">
           <div className="flex items-center justify-center gap-3 mb-10">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0">
+            <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0">
               <img src="/logo.png" alt="에듀마인 인사이트 로고" className="w-full h-full object-cover" />
             </div>
             <div className="text-left">
@@ -381,14 +381,14 @@ export default function LoginPage() {
         <div className="w-full max-w-md py-8">
           {/* Mobile logo */}
           <div className="md:hidden flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+            <div className="w-10 h-10 rounded-md overflow-hidden shrink-0">
               <img src="/logo.png" alt="에듀마인 인사이트 로고" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-gray-800">에듀마인 인사이트</span>
           </div>
 
           {/* Card */}
-          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/80 p-8 border border-slate-100/50">
+          <div className="bg-white rounded-xl shadow-xl shadow-slate-200/80 p-8 border border-slate-100/50">
 
             {/* ── 회원가입 완료 ─────────────────────────────────────── */}
             {mode === "signup_done" ? (
@@ -406,12 +406,12 @@ export default function LoginPage() {
 
                 {/* 학원장: 생성된 학원 코드 표시 */}
                 {createdAcademy && (
-                  <div className="w-full p-4 rounded-2xl border-2 border-[#3E2D9B]/20 bg-[#F5F3FF] text-left">
+                  <div className="w-full p-4 rounded-lg border-2 border-[#3E2D9B]/20 bg-[#F5F3FF] text-left">
                     <p className="text-xs font-semibold text-[#3E2D9B] mb-2">
                       🎉 {createdAcademy.name} 이(가) 생성되었습니다
                     </p>
                     <p className="text-xs text-gray-600 mb-3">선생님들에게 아래 초대 코드를 공유하세요:</p>
-                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-[#3E2D9B]/20">
+                    <div className="flex items-center justify-between bg-white rounded-md px-4 py-3 border border-[#3E2D9B]/20">
                       <span className="font-mono font-bold text-xl text-[#3E2D9B] tracking-widest">
                         {createdAcademy.code}
                       </span>
@@ -429,7 +429,7 @@ export default function LoginPage() {
 
                 <Button
                   onClick={() => switchMode("login")}
-                  className="w-full h-12 rounded-2xl font-semibold text-base mt-2"
+                  className="w-full h-12 rounded-lg font-semibold text-base mt-2"
                   style={{ background: "#3E2D9B" }}
                 >
                   <span className="flex items-center gap-2">
@@ -442,7 +442,7 @@ export default function LoginPage() {
               <>
                 {/* 카드 헤더 */}
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
                     <HIcon
                       icon={mode === "signup" ? UserAdd01Icon : ShieldKeyIcon}
                       size={18} primary="white" secondary="rgba(255,255,255,0.5)"
@@ -459,13 +459,13 @@ export default function LoginPage() {
                 </div>
 
                 {/* 로그인 / 회원가입 탭 */}
-                <div className="flex rounded-2xl bg-slate-100 p-1 mb-6">
+                <div className="flex rounded-lg bg-slate-100 p-1 mb-6">
                   {(["login", "signup"] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => switchMode(m)}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
+                      className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
                         mode === m ? "bg-white text-[#3E2D9B] shadow-sm" : "text-slate-500 hover:text-slate-700"
                       }`}
                     >
@@ -492,7 +492,7 @@ export default function LoginPage() {
                               setFoundAcademy(null)
                               setError("")
                             }}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-sm font-semibold ${
+                            className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all text-sm font-semibold ${
                               isActive
                                 ? "border-[#3E2D9B] bg-[#F5F3FF] text-[#3E2D9B]"
                                 : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
@@ -527,7 +527,7 @@ export default function LoginPage() {
                           id="name" type="text" value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="이름을 입력하세요"
-                          className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
+                          className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
                           autoComplete="name"
                         />
                       </div>
@@ -545,7 +545,7 @@ export default function LoginPage() {
                         id="email" type="email" value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="이메일 주소를 입력하세요"
-                        className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
+                        className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
                         autoComplete="email" required
                       />
                     </div>
@@ -562,7 +562,7 @@ export default function LoginPage() {
                         id="password" type="password" value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder={mode === "signup" ? "6자 이상 입력하세요" : "비밀번호를 입력하세요"}
-                        className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
+                        className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
                         autoComplete={mode === "signup" ? "new-password" : "current-password"}
                         required
                       />
@@ -583,7 +583,7 @@ export default function LoginPage() {
                           id="confirmPassword" type="password" value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="비밀번호를 다시 입력하세요"
-                          className={`pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all ${
+                          className={`pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all ${
                             confirmPassword && password !== confirmPassword ? "border-red-300 bg-red-50" : ""
                           }`}
                           autoComplete="new-password" required
@@ -609,7 +609,7 @@ export default function LoginPage() {
                           id="academyName" type="text" value={academyName}
                           onChange={(e) => setAcademyName(e.target.value)}
                           placeholder="예) 에듀마인 학원"
-                          className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
+                          className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all"
                         />
                       </div>
                       <p className="text-xs text-gray-400 pl-1">
@@ -636,7 +636,7 @@ export default function LoginPage() {
                               setFoundAcademy(null)
                             }}
                             placeholder="학원장에게 받은 코드 입력"
-                            className="pl-10 h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all font-mono tracking-wider"
+                            className="pl-10 h-12 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-[#3E2D9B] transition-all font-mono tracking-wider"
                             maxLength={8}
                           />
                         </div>
@@ -644,7 +644,7 @@ export default function LoginPage() {
                           type="button"
                           onClick={searchAcademy}
                           disabled={searching || !academyCode.trim()}
-                          className="h-12 px-4 rounded-2xl text-sm font-semibold text-white disabled:opacity-50 transition-all shrink-0"
+                          className="h-12 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all shrink-0"
                           style={{ background: "#3E2D9B" }}
                         >
                           {searching ? (
@@ -657,7 +657,7 @@ export default function LoginPage() {
 
                       {/* 학원 검색 결과 */}
                       {foundAcademy && (
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 border border-green-100">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
                           <HIcon icon={CheckmarkCircle01Icon} size={18} primary="#10B981" secondary="#A7F3D0" />
                           <div>
                             <p className="text-sm font-semibold text-green-800">{foundAcademy.name}</p>
@@ -670,7 +670,7 @@ export default function LoginPage() {
 
                   {/* 에러 메시지 */}
                   {error && errorType === "paused" && (
-                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
                       <div className="flex items-center gap-2">
                         <HIcon icon={Alert02Icon} size={16} primary="#D97706" secondary="#FDE68A" />
                         <span className="text-amber-800 text-sm font-semibold">Supabase 프로젝트 연결 실패</span>
@@ -683,14 +683,14 @@ export default function LoginPage() {
                         href="https://supabase.com/dashboard/project/iizltljruhspbequlynd"
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-center gap-1.5 w-full h-9 rounded-xl text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors mt-1"
+                        className="flex items-center justify-center gap-1.5 w-full h-9 rounded-md text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors mt-1"
                       >
                         Supabase 대시보드에서 프로젝트 재개 →
                       </a>
                     </div>
                   )}
                   {error && errorType === "normal" && (
-                    <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-50 border border-red-100">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
                       <HIcon icon={Alert02Icon} size={16} primary="#EF4444" secondary="#FCA5A5" />
                       <span className="text-red-600 text-sm leading-relaxed">{error}</span>
                     </div>
@@ -699,7 +699,7 @@ export default function LoginPage() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-12 rounded-2xl font-semibold text-base shadow-lg shadow-purple-200 transition-all"
+                    className="w-full h-12 rounded-lg font-semibold text-base shadow-lg shadow-purple-200 transition-all"
                     style={{ background: loading ? "#9CA3AF" : "#3E2D9B" }}
                   >
                     {loading ? (
@@ -736,7 +736,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={handleGoogleLogin}
                       disabled={socialLoading !== null}
-                      className="flex w-full items-center justify-center gap-2.5 h-11 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="flex w-full items-center justify-center gap-2.5 h-11 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {socialLoading === "google" ? (
                         <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
@@ -776,9 +776,9 @@ export default function LoginPage() {
       {/* ── DB 설정 필요 모달 ──────────────────────────────────────────────── */}
       {dbSetupNeeded && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-100">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-100">
                 <HIcon icon={DatabaseIcon} size={20} primary="#D97706" secondary="#FDE68A" />
               </div>
               <div>
@@ -788,7 +788,7 @@ export default function LoginPage() {
             </div>
 
             {dbSetupDone ? (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 border border-green-200 mb-4">
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200 mb-4">
                 <HIcon icon={CheckmarkCircle01Icon} size={20} primary="#10B981" secondary="#6EE7B7" />
                 <div>
                   <p className="text-green-700 font-semibold text-sm">설정 완료!</p>
@@ -798,7 +798,7 @@ export default function LoginPage() {
             ) : (
               <>
                 <div className="relative mb-4">
-                  <pre className="bg-gray-900 text-green-400 text-xs rounded-2xl p-4 overflow-auto max-h-48 leading-relaxed">
+                  <pre className="bg-gray-900 text-green-400 text-xs rounded-lg p-4 overflow-auto max-h-48 leading-relaxed">
                     {dbSetupSql}
                   </pre>
                   <button
@@ -807,13 +807,13 @@ export default function LoginPage() {
                       setSqlCopied(true)
                       setTimeout(() => setSqlCopied(false), 2000)
                     }}
-                    className="absolute top-3 right-3 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
+                    className="absolute top-3 right-3 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
                   >
                     {sqlCopied ? "✓ 복사됨" : "복사"}
                   </button>
                 </div>
 
-                <div className="bg-blue-50 rounded-2xl p-3 mb-4 text-xs text-blue-700 leading-relaxed">
+                <div className="bg-blue-50 rounded-lg p-3 mb-4 text-xs text-blue-700 leading-relaxed">
                   <strong>실행 방법:</strong><br />
                   1. <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="underline font-semibold">Supabase Dashboard</a> 접속<br />
                   2. 프로젝트 선택 → <strong>SQL Editor</strong> 클릭<br />
@@ -832,7 +832,7 @@ export default function LoginPage() {
                       } catch { /* ignore */ } finally { setDbSetupRunning(false) }
                     }}
                     disabled={dbSetupRunning}
-                    className="flex-1 h-10 rounded-2xl text-sm font-semibold"
+                    className="flex-1 h-10 rounded-lg text-sm font-semibold"
                     style={{ background: "#3E2D9B" }}
                   >
                     <HIcon icon={Settings01Icon} size={15} primary="white" secondary="rgba(255,255,255,0.5)" />
@@ -841,7 +841,7 @@ export default function LoginPage() {
                   <Button
                     variant="outline"
                     onClick={() => { setDbSetupDone(true) }}
-                    className="flex-1 h-10 rounded-2xl text-sm border-slate-200"
+                    className="flex-1 h-10 rounded-lg text-sm border-slate-200"
                   >
                     SQL 실행 완료
                   </Button>

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -53,11 +53,11 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="block bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60 hover:shadow-2xl hover:-translate-y-1 transition-all group"
+      className="block bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60 hover:shadow-2xl hover:-translate-y-1 transition-all group"
     >
       <div className="flex items-start justify-between mb-5">
         <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center"
+          className="w-12 h-12 rounded-lg flex items-center justify-center"
           style={{ background: color + "1A" }}
         >
           <HIcon icon={icon} size={22} primary={color} secondary={color + "80"} />
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#3E2D9B" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#3E2D9B" }}>
             <HIcon icon={Analytics01Icon} size={20} primary="white" secondary="rgba(255,255,255,0.5)" />
           </div>
           <div>
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
       {/* Two-column content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent items */}
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <HIcon icon={Clock01Icon} size={20} primary="#3E2D9B" secondary="#C4BEF0" />
@@ -163,8 +163,8 @@ export default function AdminDashboard() {
           ) : (
             <ul className="space-y-3">
               {recentItems.map((item) => (
-                <li key={item.id} className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="mt-0.5 w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                <li key={item.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="mt-0.5 w-7 h-7 rounded-md flex items-center justify-center shrink-0"
                     style={{ background: item.category === "manual" ? "#7C3AED1A" : "#0EA5E91A" }}>
                     <HIcon
                       icon={item.category === "manual" ? BookOpen01Icon : CheckmarkBadge01Icon}
@@ -189,7 +189,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Priority breakdown */}
-        <div className="bg-white rounded-3xl p-7 shadow-xl shadow-slate-200/60">
+        <div className="bg-white rounded-xl p-7 shadow-xl shadow-slate-200/60">
           <div className="flex items-center gap-2 mb-6">
             <HIcon icon={Analytics01Icon} size={20} primary="#3E2D9B" secondary="#C4BEF0" />
             <h2 className="text-lg font-bold text-gray-900">우선순위 현황</h2>
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
               { label: "낮음 (Low)",   count: items.filter((i) => i.priority === "low").length,    color: "#6B7280", bg: "#F9FAFB" },
             ].map((row) => (
               <div key={row.label} className="flex items-center gap-4">
-                <div className="px-3 py-1.5 rounded-xl text-xs font-semibold min-w-[110px]"
+                <div className="px-3 py-1.5 rounded-md text-xs font-semibold min-w-[110px]"
                   style={{ color: row.color, background: row.bg }}>
                   {row.label}
                 </div>
@@ -215,7 +215,7 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          <div className="mt-6 p-4 rounded-2xl border border-purple-100" style={{ background: "#F5F3FF" }}>
+          <div className="mt-6 p-4 rounded-lg border border-purple-100" style={{ background: "#F5F3FF" }}>
             <p className="text-xs text-purple-600 leading-relaxed">
               {highPriority.length}개의 고우선순위 항목이 AI 분석에 우선 반영됩니다.
               현재 페르소나: <strong>{toneLabel}</strong> 모드

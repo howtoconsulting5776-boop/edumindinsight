@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
@@ -86,7 +86,7 @@ export function UsageMeter({ used, limit, remaining, percent, plan, signupMethod
   // ── 무제한 플랜 ──────────────────────────────────────────────────────────
   if (isUnlimited) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm flex items-center justify-between gap-2">
+      <div className="rounded-lg border border-slate-100 bg-white px-4 py-3 shadow-sm flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-slate-500">∞ 무제한 플랜 사용 중</p>
         <div className="flex items-center gap-1.5">
           {signupMethod === "google" && <GoogleBadge />}
@@ -96,7 +96,7 @@ export function UsageMeter({ used, limit, remaining, percent, plan, signupMethod
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm space-y-2">
+    <div className="rounded-lg border border-slate-100 bg-white px-4 py-3 shadow-sm space-y-2">
       {/* 헤더 행 */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
@@ -113,13 +113,13 @@ export function UsageMeter({ used, limit, remaining, percent, plan, signupMethod
 
       {/* 100% 도달 시 인라인 경고 */}
       {isMaxed && (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 rounded-md border border-red-100 bg-red-50 px-3 py-2">
           <p className="text-xs font-semibold text-red-600">
             이번 달 한도를 모두 사용했습니다. 업그레이드 후 계속 이용하세요.
           </p>
           <button
             onClick={() => router.push("/pricing")}
-            className="shrink-0 rounded-lg bg-red-500 px-2.5 py-1 text-xs font-bold text-white transition-colors hover:bg-red-600"
+            className="shrink-0 rounded bg-red-500 px-2.5 py-1 text-xs font-bold text-white transition-colors hover:bg-red-600"
           >
             지금 업그레이드
           </button>
