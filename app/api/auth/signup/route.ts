@@ -78,7 +78,6 @@ export async function POST(req: NextRequest) {
           await admin.from("profiles").upsert({
             id: userId,
             email,
-            full_name: full_name ?? "",
             role: role ?? "teacher",
             academy_id: academy_id || null,
             plan: "free",
