@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -73,32 +73,74 @@ function StatCard({
   )
 }
 
-interface KnowledgeItem {
+interface RecentItem {
   id: string
-  category: string
   title: string
-  content: string
+  category: "manual" | "case"
   priority: string
-  tags: string[]
   createdAt: string
 }
 
 export default function AdminDashboard() {
-  const [items, setItems] = useState<KnowledgeItem[]>([])
-  const [logsCount, setLogsCount] = useState(0)
-  const [toneLabel, setToneLabel] = useState("공감형")
-  const [loading, setLoading] = useState(true)
+  const [manualsCount, setManualsCount]   = useState(0)
+  const [casesCount, setCasesCount]       = useState(0)
+  const [logsCount, setLogsCount]         = useState(0)
+  const [toneLabel, setToneLabel]         = useState("공감형")
+  const [recentItems, setRecentItems]     = useState<RecentItem[]>([])
+  const [priorityCounts, setPriorityCounts] = useState({ high: 0, medium: 0, low: 0, critical: 0 })
+  const [loading, setLoading]             = useState(true)
 
   useEffect(() => {
     async function load() {
+      // 매뉴얼 목록 (manual_sources)
+      let manuals: RecentItem[] = []
       try {
-        const res = await fetch("/api/knowledge")
+        const res = await fetch("/api/manuals")
         if (res.ok) {
           const data = await res.json()
-          setItems(data.items ?? [])
+          const rows = (data.manuals ?? []) as { id: string; title: string; priority: string; createdAt: string }[]
+          setManualsCount(rows.length)
+          manuals = rows.map((r) => ({ id: r.id, title: r.title, category: "manual" as const, priority: r.priority, createdAt: r.createdAt }))
         }
       } catch { /* ignore */ }
 
+      // 사례 목록 (counseling_cases)
+      let cases: RecentItem[] = []
+      try {
+        const res = await fetch("/api/cases")
+        if (res.ok) {
+          const data = await res.json()
+          const rows = (data.cases ?? []) as { id: string; title: string; priority: string; createdAt: string }[]
+          setCasesCount(rows.length)
+          cases = rows.map((r) => ({ id: r.id, title: r.title, category: "case" as const, priority: r.priority, createdAt: r.createdAt }))
+        }
+      } catch { /* ignore */ }
+
+      // 최근 등록 항목 (매뉴얼 + 사례 합산 후 최신순 5개)
+      const combined = [...manuals, ...cases].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      setRecentItems(combined.slice(0, 5))
+
+      // 우선순위 분포
+      const all = [...manuals, ...cases]
+      setPriorityCounts({
+        critical: all.filter((i) => i.priority === "critical").length,
+        high:     all.filter((i) => i.priority === "high").length,
+        medium:   all.filter((i) => i.priority === "medium").length,
+        low:      all.filter((i) => i.priority === "low").length,
+      })
+
+      // 분석 로그 수 (이번 달 사용량)
+      try {
+        const res = await fetch("/api/usage")
+        if (res.ok) {
+          const data = await res.json()
+          setLogsCount(data.used ?? 0)
+        }
+      } catch { /* ignore */ }
+
+      // 페르소나
       try {
         const res = await fetch("/api/persona")
         if (res.ok) {
@@ -113,13 +155,8 @@ export default function AdminDashboard() {
     load()
   }, [])
 
-  const manuals = items.filter((i) => i.category === "manual")
-  const cases   = items.filter((i) => i.category === "case")
-  const highPriority = items.filter((i) => i.priority === "high")
-
-  const recentItems = [...items]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
+  const totalItems = manualsCount + casesCount
+  const highCount  = priorityCounts.critical + priorityCounts.high
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -138,10 +175,10 @@ export default function AdminDashboard() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-        <StatCard icon={Database01Icon}        label="전체 지식 항목"    value={loading ? "…" : items.length}   sub="학습된 총 데이터"    href="/admin/manuals" color="#3E2D9B" />
-        <StatCard icon={BookOpen01Icon}         label="학원 운영 매뉴얼"  value={loading ? "…" : manuals.length} sub="Hard Rules 등록"    href="/admin/manuals" color="#7C3AED" />
-        <StatCard icon={CheckmarkBadge01Icon}   label="모범 사례"         value={loading ? "…" : cases.length}   sub="성공 경험 학습"     href="/admin/cases"   color="#0EA5E9" />
-        <StatCard icon={AiBrain01Icon}          label="분석 로그"         value={loading ? "…" : logsCount}      sub={`페르소나: ${toneLabel}`} href="/admin/persona" color="#10B981" />
+        <StatCard icon={Database01Icon}        label="전체 지식 항목"    value={loading ? "…" : totalItems}      sub="매뉴얼 + 사례 합산"  href="/admin/manuals" color="#3E2D9B" />
+        <StatCard icon={BookOpen01Icon}         label="학원 운영 매뉴얼"  value={loading ? "…" : manualsCount}    sub="Hard Rules 등록"     href="/admin/manuals" color="#7C3AED" />
+        <StatCard icon={CheckmarkBadge01Icon}   label="모범 사례"         value={loading ? "…" : casesCount}      sub="성공 경험 학습"      href="/admin/cases"   color="#0EA5E9" />
+        <StatCard icon={AiBrain01Icon}          label="이번 달 분석"      value={loading ? "…" : logsCount}       sub={`페르소나: ${toneLabel}`} href="/admin/persona" color="#10B981" />
       </div>
 
       {/* Two-column content */}
@@ -177,8 +214,12 @@ export default function AdminDashboard() {
                     <p className="text-sm font-semibold text-gray-800 truncate">{item.title}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {item.category === "manual" ? "매뉴얼" : "사례"} ·{" "}
-                      <span className={item.priority === "high" ? "text-red-500" : item.priority === "medium" ? "text-amber-500" : "text-gray-400"}>
-                        {item.priority === "high" ? "높음" : item.priority === "medium" ? "보통" : "낮음"}
+                      <span className={
+                        item.priority === "critical" ? "text-red-600" :
+                        item.priority === "high"     ? "text-red-500" :
+                        item.priority === "medium"   ? "text-amber-500" : "text-gray-400"
+                      }>
+                        {item.priority === "critical" ? "필수" : item.priority === "high" ? "높음" : item.priority === "medium" ? "보통" : "낮음"}
                       </span>
                     </p>
                   </div>
@@ -197,18 +238,19 @@ export default function AdminDashboard() {
 
           <div className="space-y-4">
             {[
-              { label: "높음 (High)",  count: highPriority.length,                              color: "#EF4444", bg: "#FEF2F2" },
-              { label: "보통 (Medium)", count: items.filter((i) => i.priority === "medium").length, color: "#F59E0B", bg: "#FFFBEB" },
-              { label: "낮음 (Low)",   count: items.filter((i) => i.priority === "low").length,    color: "#6B7280", bg: "#F9FAFB" },
+              { label: "필수 (Critical)", count: priorityCounts.critical, color: "#DC2626", bg: "#FEF2F2" },
+              { label: "높음 (High)",     count: priorityCounts.high,     color: "#EF4444", bg: "#FEF2F2" },
+              { label: "보통 (Medium)",   count: priorityCounts.medium,   color: "#F59E0B", bg: "#FFFBEB" },
+              { label: "낮음 (Low)",      count: priorityCounts.low,      color: "#6B7280", bg: "#F9FAFB" },
             ].map((row) => (
               <div key={row.label} className="flex items-center gap-4">
-                <div className="px-3 py-1.5 rounded-md text-xs font-semibold min-w-[110px]"
+                <div className="px-3 py-1.5 rounded-md text-xs font-semibold min-w-[120px]"
                   style={{ color: row.color, background: row.bg }}>
                   {row.label}
                 </div>
                 <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
                   <div className="h-full rounded-full transition-all"
-                    style={{ width: items.length > 0 ? `${(row.count / items.length) * 100}%` : "0%", background: row.color }} />
+                    style={{ width: totalItems > 0 ? `${(row.count / totalItems) * 100}%` : "0%", background: row.color }} />
                 </div>
                 <span className="text-sm font-bold text-gray-700 w-6 text-right">{row.count}</span>
               </div>
@@ -217,7 +259,7 @@ export default function AdminDashboard() {
 
           <div className="mt-6 p-4 rounded-lg border border-purple-100" style={{ background: "#F5F3FF" }}>
             <p className="text-xs text-purple-600 leading-relaxed">
-              {highPriority.length}개의 고우선순위 항목이 AI 분석에 우선 반영됩니다.
+              {highCount}개의 고우선순위 항목이 AI 분석에 우선 반영됩니다.
               현재 페르소나: <strong>{toneLabel}</strong> 모드
             </p>
           </div>

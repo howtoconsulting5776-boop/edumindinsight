@@ -2,12 +2,26 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   isSupabaseConfigured,
   isAdminUser,
+  getUserProfile,
   createSupabaseAdminClient,
 } from "@/lib/supabase/server"
 import { getSession } from "@/lib/auth"
 import { readPersona, writePersona } from "@/lib/store"
 import type { PersonaSettings } from "@/lib/store"
 
+// GET: 로그인한 모든 사용자 허용 (페르소나 읽기)
+async function requireAuth(): Promise<NextResponse | null> {
+  if (isSupabaseConfigured()) {
+    const profile = await getUserProfile()
+    if (!profile) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return null
+  }
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  return null
+}
+
+// PUT: 관리자/원장만 수정 가능
 async function requireAdmin(): Promise<NextResponse | null> {
   if (isSupabaseConfigured()) {
     const ok = await isAdminUser()
@@ -43,7 +57,7 @@ function personaToDb(p: PersonaSettings) {
 }
 
 export async function GET() {
-  const authError = await requireAdmin()
+  const authError = await requireAuth()
   if (authError) return authError
 
   if (isSupabaseConfigured()) {

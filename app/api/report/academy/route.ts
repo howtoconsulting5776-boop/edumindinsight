@@ -96,16 +96,21 @@ export async function GET(req: NextRequest) {
     }))
 
     // ── 4. 키워드 빈도 집계 ───────────────────────────────────────────────
-    // PII 비식별화 플레이스홀더 및 의미 없는 단어 제외
+    // PII 비식별화 플레이스홀더 및 의미 없는 범용 단어 제외
     const EXCLUDED_KEYWORDS = new Set([
+      // 비식별화 플레이스홀더
       "OO", "oo", "○○", "XX", "xx", "□□", "△△",
-      "해당", "학생", "학부모", "학부모님", "선생님", "강사님",
+      // 역할어 (모든 상담에 등장해 변별력 없음)
+      "해당", "학생", "학부모", "학부모님", "선생님", "강사님", "원장님", "강사",
+      // 서비스 자체 단어 (모든 상담이 학원 관련이므로 의미 없음)
+      "학원", "상담", "수업", "교육", "학습",
+      // 너무 짧은 단어 (1자)
     ])
     const kwFreq = new Map<string, number>()
     for (const log of allLogs) {
       for (const kw of (log.keywords as string[]) ?? []) {
         const trimmed = kw.trim()
-        if (!trimmed || EXCLUDED_KEYWORDS.has(trimmed)) continue
+        if (!trimmed || trimmed.length <= 1 || EXCLUDED_KEYWORDS.has(trimmed)) continue
         kwFreq.set(trimmed, (kwFreq.get(trimmed) ?? 0) + 1)
       }
     }
