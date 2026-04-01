@@ -61,6 +61,7 @@ interface HistoryLog {
   negativeScore: number | null
   keywords: string[]
   historySummary: string | null
+  originalText: string | null
   createdAt: string
 }
 
@@ -703,9 +704,102 @@ export default function Home() {
                 studentId={selectedStudentId}
                 refreshToken={chartRefreshToken}
               />
+
+              {/* ── 전체 상담 인사이트 & 전략 ── */}
+              {studentHistoryData && studentHistoryData.logs.length > 0 && (() => {
+                const logs = studentHistoryData.logs
+                const scored = logs.filter((l) => l.riskScore !== null)
+
+                // 추이 계산 (최근 절반 vs 이전 절반)
+                const half   = Math.ceil(scored.length / 2)
+                const recent = scored.slice(0, half)
+                const older  = scored.slice(half)
+                const avgRecent = recent.length > 0 ? Math.round(recent.reduce((s, l) => s + (l.riskScore ?? 0), 0) / recent.length) : null
+                const avgOlder  = older.length  > 0 ? Math.round(older.reduce((s, l)  => s + (l.riskScore ?? 0), 0) / older.length)  : null
+                const trend = avgRecent !== null && avgOlder !== null
+                  ? avgRecent > avgOlder + 5 ? "상승" : avgRecent < avgOlder - 5 ? "하락" : "유지"
+                  : "데이터 부족"
+
+                // 전체 키워드 빈도 top5
+                const kwFreq: Record<string, number> = {}
+                for (const l of logs) {
+                  for (const kw of l.keywords ?? []) {
+                    if (kw && kw !== "OO" && kw !== "○○") kwFreq[kw] = (kwFreq[kw] ?? 0) + 1
+                  }
+                }
+                const topKw = Object.entries(kwFreq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k)
+
+                // 전략 텍스트
+                const latestRisk = scored[0]?.riskScore ?? 0
+                const strategies: { label: string; text: string; color: string; bg: string }[] = []
+                if (latestRisk >= 70) {
+                  strategies.push({ label: "즉각 대응", text: "최근 이탈 위험도가 매우 높습니다. 원장 또는 담당 선생님이 직접 학부모에게 연락해 관계를 회복하고 구체적인 개선 로드맵을 제시하세요.", color: "#DC2626", bg: "#FEF2F2" })
+                } else if (latestRisk >= 40) {
+                  strategies.push({ label: "집중 관리", text: "주의 단계입니다. 2주 이내 추가 상담을 계획하고, 학생의 성장 데이터를 준비해 학부모의 불안을 해소하세요.", color: "#D97706", bg: "#FFFBEB" })
+                } else {
+                  strategies.push({ label: "관계 유지", text: "안정적인 상태입니다. 정기적인 소통으로 신뢰를 강화하고, 긍정적인 성장 사례를 공유하며 관계를 유지하세요.", color: "#059669", bg: "#F0FDF4" })
+                }
+                if (trend === "상승") {
+                  strategies.push({ label: "추이 경고", text: "위험도가 상승 추세입니다. 상담 빈도를 높이고 이전 상담에서 나온 핵심 키워드를 중심으로 원인을 파악하세요.", color: "#DC2626", bg: "#FEF2F2" })
+                } else if (trend === "하락") {
+                  strategies.push({ label: "추이 긍정", text: "위험도가 하락하고 있습니다. 현재 상담 전략이 효과적입니다. 같은 방향을 유지하면서 긍정 경험을 강화하세요.", color: "#059669", bg: "#F0FDF4" })
+                }
+
+                return (
+                  <div className="mt-6 pt-5 border-t border-slate-100 space-y-4">
+                    {/* 수치 요약 */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: "총 상담", value: `${studentHistoryData.stats.totalSessions}회` },
+                        { label: "평균 위험도", value: `${studentHistoryData.stats.avgRiskScore}점` },
+                        { label: "위험도 추이", value: trend,
+                          valueColor: trend === "상승" ? "#DC2626" : trend === "하락" ? "#059669" : "#6B7280" },
+                      ].map((item) => (
+                        <div key={item.label} className="rounded-lg bg-slate-50 px-3 py-3 text-center">
+                          <p className="text-[10px] text-slate-400 mb-1">{item.label}</p>
+                          <p className="text-sm font-extrabold" style={{ color: item.valueColor ?? "#1E293B" }}>{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 자주 등장 키워드 */}
+                    {topKw.length > 0 && (
+                      <div>
+                        <p className="text-[11px] font-semibold text-slate-400 mb-2">반복 키워드</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {topKw.map((kw) => (
+                            <span key={kw} className="text-[11px] bg-[#EEF0FF] text-[#3E2D9B] px-2.5 py-1 rounded-full font-semibold">
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 상담 전략 */}
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-400 mb-2">추천 상담 전략</p>
+                      <div className="space-y-2">
+                        {strategies.map((s) => (
+                          <div key={s.label} className="rounded-lg px-4 py-3 flex gap-3 items-start"
+                            style={{ background: s.bg }}>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 shrink-0"
+                              style={{ background: s.color, color: "#fff" }}>
+                              {s.label}
+                            </span>
+                            <p className="text-xs leading-relaxed" style={{ color: s.color.replace("EF4444", "7F1D1D").replace("DC2626", "7F1D1D") ?? "#374151" }}>
+                              {s.text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
             </SectionCard>
 
-            {/* 이전 상담 기록 */}
+            {/* 최근 상담 기록 */}
             {studentHistoryData && studentHistoryData.logs.length > 0 && (
               <SectionCard icon={FileEditIcon} title="최근 상담 기록">
                 <div className="space-y-3">
@@ -746,8 +840,16 @@ export default function Home() {
                           ))}
                         </div>
                       )}
-                      {log.historySummary && (
-                        <p className="text-xs text-slate-500 leading-relaxed">{log.historySummary}</p>
+                      {/* 실제 상담 내용 요약 */}
+                      {log.originalText && (
+                        <div className="mt-2 rounded-md bg-white border border-slate-100 px-3 py-2.5">
+                          <p className="text-[10px] font-semibold text-slate-400 mb-1">상담 내용</p>
+                          <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                            {log.originalText.length > 200
+                              ? log.originalText.slice(0, 200) + "…"
+                              : log.originalText}
+                          </p>
+                        </div>
                       )}
                     </div>
                   ))}
