@@ -153,13 +153,31 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
     if (data) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const academy = (data as any).academies
+      let academy = (data as any).academies
+      let resolvedAcademyId: string | null = data.academy_id ?? null
+
+      // director인데 academy_id가 null → owner인 학원을 자동으로 찾아 연결
+      const effectiveRole = isAdminByEmail ? "admin" : (data.role as UserRole)
+      if (!resolvedAcademyId && effectiveRole === "director") {
+        const { data: ownedAcademy } = await db
+          .from("academies")
+          .select("id, name, code")
+          .eq("owner_id", user.id)
+          .maybeSingle()
+        if (ownedAcademy) {
+          resolvedAcademyId = ownedAcademy.id
+          academy = ownedAcademy
+          // profiles 테이블에도 자동 업데이트
+          await db.from("profiles").update({ academy_id: ownedAcademy.id }).eq("id", user.id).catch(() => {})
+        }
+      }
+
       return {
         id: user.id,
         email: user.email!,
         // admin 이메일이면 role을 항상 'admin'으로 강제 (DB 값 무관)
-        role: isAdminByEmail ? "admin" : (data.role as UserRole),
-        academyId: data.academy_id ?? null,
+        role: effectiveRole,
+        academyId: resolvedAcademyId,
         academyName: academy?.name ?? null,
         academyCode: academy?.code ?? null,
         displayName,
