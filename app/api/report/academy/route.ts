@@ -106,18 +106,31 @@ export async function GET(req: NextRequest) {
       "학원", "상담", "수업", "교육", "학습",
       // 너무 짧은 단어 (1자)
     ])
-    const kwFreq = new Map<string, number>()
+    // 키워드별 (count, positiveSum, negativeSum) 집계
+    const kwData = new Map<string, { count: number; posSum: number; negSum: number }>()
     for (const log of allLogs) {
       for (const kw of (log.keywords as string[]) ?? []) {
         const trimmed = kw.trim()
         if (!trimmed || trimmed.length <= 1 || EXCLUDED_KEYWORDS.has(trimmed)) continue
-        kwFreq.set(trimmed, (kwFreq.get(trimmed) ?? 0) + 1)
+        const cur = kwData.get(trimmed) ?? { count: 0, posSum: 0, negSum: 0 }
+        kwData.set(trimmed, {
+          count:  cur.count + 1,
+          posSum: cur.posSum + (log.positive_score ?? 0),
+          negSum: cur.negSum + (log.negative_score ?? 0),
+        })
       }
     }
-    const keywords = [...kwFreq.entries()]
-      .sort((a, b) => b[1] - a[1])
+    const keywords = [...kwData.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 15)
-      .map(([word, count]) => ({ word, count }))
+      .map(([word, v]) => {
+        const avgPos = v.count > 0 ? v.posSum / v.count : 0
+        const avgNeg = v.count > 0 ? v.negSum / v.count : 0
+        const sentiment: "positive" | "negative" | "neutral" =
+          avgPos - avgNeg >= 10 ? "positive" :
+          avgNeg - avgPos >= 10 ? "negative" : "neutral"
+        return { word, count: v.count, sentiment }
+      })
 
     // ── 5. 상담 대상별 통계 ───────────────────────────────────────────────
     const contactTypeStats: Record<string, number> = {}

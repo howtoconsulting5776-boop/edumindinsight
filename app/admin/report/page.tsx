@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -77,7 +77,7 @@ interface ReportData {
     longAbsent: RiskStudent[]
   }
   trend: { date: string; count: number; avgRisk: number }[]
-  keywords: { word: string; count: number }[]
+  keywords: { word: string; count: number; sentiment: "positive" | "negative" | "neutral" }[]
   contactTypeStats: Record<string, number>
   studentStatusStats: { active: number; prospect: number; inactive: number; withdrawn: number }
   teacherStats: {
@@ -473,29 +473,50 @@ export default function AcademyReportPage() {
               키워드 데이터가 없습니다.
             </div>
           ) : (
-            <div className="space-y-2">
-              {(data!.keywords).slice(0, 10).map((kw, i) => {
-                const max   = data!.keywords[0].count
-                const width = Math.max(Math.round((kw.count / max) * 100), 4)
-                return (
-                  <div key={kw.word} className="flex items-center gap-2">
-                    <span className="w-5 text-xs text-slate-400 text-right flex-shrink-0">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-medium text-slate-700">{kw.word}</span>
-                        <span className="text-xs text-slate-400">{kw.count}회</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${width}%`, background: "#8B5CF6" }}
-                        />
+            <>
+              {/* 범례 */}
+              <div className="flex items-center gap-4 mb-3">
+                {[
+                  { color: "#3B82F6", label: "긍정" },
+                  { color: "#EF4444", label: "부정" },
+                  { color: "#8B5CF6", label: "중립" },
+                ].map((l) => (
+                  <div key={l.label} className="flex items-center gap-1">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: l.color }} />
+                    <span className="text-[11px] text-slate-500">{l.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {(data!.keywords).slice(0, 10).map((kw, i) => {
+                  const max   = data!.keywords[0].count
+                  const width = Math.max(Math.round((kw.count / max) * 100), 4)
+                  const barColor =
+                    kw.sentiment === "positive" ? "#3B82F6" :
+                    kw.sentiment === "negative" ? "#EF4444" : "#8B5CF6"
+                  const textColor =
+                    kw.sentiment === "positive" ? "#1D4ED8" :
+                    kw.sentiment === "negative" ? "#DC2626" : "#64748B"
+                  return (
+                    <div key={kw.word} className="flex items-center gap-2">
+                      <span className="w-5 text-xs text-slate-400 text-right flex-shrink-0">{i + 1}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-semibold" style={{ color: textColor }}>{kw.word}</span>
+                          <span className="text-xs text-slate-400">{kw.count}회</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${width}%`, background: barColor }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            </>
           )}
         </SectionCard>
 
