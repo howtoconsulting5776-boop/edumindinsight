@@ -96,10 +96,17 @@ export async function GET(req: NextRequest) {
     }))
 
     // ── 4. 키워드 빈도 집계 ───────────────────────────────────────────────
+    // PII 비식별화 플레이스홀더 및 의미 없는 단어 제외
+    const EXCLUDED_KEYWORDS = new Set([
+      "OO", "oo", "○○", "XX", "xx", "□□", "△△",
+      "해당", "학생", "학부모", "학부모님", "선생님", "강사님",
+    ])
     const kwFreq = new Map<string, number>()
     for (const log of allLogs) {
       for (const kw of (log.keywords as string[]) ?? []) {
-        kwFreq.set(kw, (kwFreq.get(kw) ?? 0) + 1)
+        const trimmed = kw.trim()
+        if (!trimmed || EXCLUDED_KEYWORDS.has(trimmed)) continue
+        kwFreq.set(trimmed, (kwFreq.get(trimmed) ?? 0) + 1)
       }
     }
     const keywords = [...kwFreq.entries()]
