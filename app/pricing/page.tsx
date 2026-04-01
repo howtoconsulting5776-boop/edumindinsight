@@ -65,8 +65,7 @@ const PLANS: {
 export default function PricingPage() {
   const router = useRouter()
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
-  const [upgrading, setUpgrading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [contactModal, setContactModal] = useState<Plan | null>(null)
 
   useEffect(() => {
     fetch("/api/usage")
@@ -75,42 +74,45 @@ export default function PricingPage() {
       .catch(() => {})
   }, [])
 
-  async function handleUpgrade(targetPlan: Plan) {
-    if (targetPlan === "enterprise") {
-      window.open("mailto:support@edumindinsight.com?subject=Enterprise%20플랜%20문의", "_blank")
-      return
-    }
+  function handleUpgrade(targetPlan: Plan) {
     if (targetPlan === currentPlan) return
-
-    setUpgrading(true)
-    setMessage(null)
-
-    try {
-      // 서버 API를 통해 플랜 변경 (클라이언트 직접 수정 차단)
-      const res  = await fetch("/api/billing/upgrade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: targetPlan }),
-      })
-      const data = await res.json()
-
-      if (!res.ok) {
-        if (res.status === 401) { router.push("/login"); return }
-        setMessage({ type: "error", text: data.error ?? "업그레이드에 실패했습니다. 잠시 후 다시 시도해주세요." })
-        return
-      }
-
-      setCurrentPlan(targetPlan)
-      setMessage({ type: "success", text: data.message ?? `${targetPlan === "pro" ? "Pro" : "Free"} 플랜으로 변경되었습니다! 🎉` })
-    } catch {
-      setMessage({ type: "error", text: "서버에 연결할 수 없습니다." })
-    } finally {
-      setUpgrading(false)
-    }
+    // 결제 시스템 미연동 — 관리자 문의 안내 모달 표시
+    setContactModal(targetPlan)
   }
 
   return (
     <div className="min-h-screen bg-[#F0EFFB] px-4 py-16 font-sans">
+
+      {/* ── 문의 안내 모달 ──────────────────────────────────────────── */}
+      {contactModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
+            <h2 className="text-lg font-extrabold text-slate-800 mb-2">
+              {contactModal === "pro" ? "Pro 플랜" : "Enterprise 플랜"} 전환 안내
+            </h2>
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+              현재 온라인 결제 시스템이 준비 중입니다.
+              <br />
+              플랜 변경을 원하시면 아래 이메일로 관리자에게 문의해 주세요.
+            </p>
+            <a
+              href={`mailto:support@edumindinsight.com?subject=${encodeURIComponent(
+                (contactModal === "pro" ? "Pro" : "Enterprise") + " 플랜 전환 문의"
+              )}`}
+              className="flex items-center justify-center gap-2 w-full rounded-2xl bg-[#3E2D9B] py-3 text-sm font-bold text-white hover:bg-[#2f226e] transition-colors mb-3"
+            >
+              ✉️ support@edumindinsight.com
+            </a>
+            <button
+              onClick={() => setContactModal(null)}
+              className="w-full rounded-2xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 뒤로가기 */}
       <button
         onClick={() => router.back()}
@@ -130,19 +132,6 @@ export default function PricingPage() {
             학원 규모에 맞는 플랜을 선택하세요. 언제든지 변경 가능합니다.
           </p>
         </div>
-
-        {/* 결과 메시지 */}
-        {message && (
-          <div
-            className={`mb-8 rounded-2xl border px-5 py-4 text-sm font-semibold ${
-              message.type === "success"
-                ? "border-green-200 bg-green-50 text-green-700"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
 
         {/* 플랜 카드 */}
         <div className="grid gap-6 md:grid-cols-3">
@@ -233,11 +222,7 @@ export default function PricingPage() {
                 {/* CTA 버튼 */}
                 <button
                   onClick={() => handleUpgrade(plan.key)}
-                  disabled={
-                    upgrading ||
-                    (isCurrentLoaded && isCurrent && plan.key !== "enterprise") ||
-                    (!isCurrentLoaded && plan.key !== "enterprise")
-                  }
+                  disabled={isCurrentLoaded && isCurrent}
                   className={`mt-8 w-full rounded-2xl py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
                     plan.highlight
                       ? "bg-white text-[#3E2D9B] hover:bg-white/90 shadow-lg"
@@ -246,11 +231,7 @@ export default function PricingPage() {
                         : "border-2 border-[#3E2D9B] bg-transparent text-[#3E2D9B] hover:bg-[#3E2D9B] hover:text-white"
                   }`}
                 >
-                  {upgrading && !isCurrent
-                    ? "처리 중..."
-                    : isCurrent
-                      ? "현재 플랜"
-                      : plan.cta}
+                  {isCurrent ? "현재 플랜" : plan.cta}
                 </button>
               </div>
             )
