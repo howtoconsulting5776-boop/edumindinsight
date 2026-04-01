@@ -5,12 +5,20 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/server"
 
-async function requireDirectorOrAdmin() {
+async function requireAuth() {
   const profile = await getUserProfile()
-  if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
-    return { error: NextResponse.json({ error: "권한이 없습니다." }, { status: 403 }), profile: null }
+  if (!profile) {
+    return { error: NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 }), profile: null }
   }
   return { error: null, profile }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function canAccess(row: any, profile: { id: string; academyId: string | null; role: string }) {
+  if (profile.role === "admin") return true
+  if (row.created_by === profile.id) return true
+  if (profile.academyId && row.academy_id === profile.academyId) return true
+  return false
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +47,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
@@ -59,7 +67,7 @@ export async function GET(
       return NextResponse.json({ error: "사례를 찾을 수 없습니다." }, { status: 404 })
     }
 
-    if (data.academy_id !== null && data.academy_id !== profile!.academyId) {
+    if (!canAccess(data, profile!)) {
       return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 })
     }
 
@@ -71,13 +79,12 @@ export async function GET(
 }
 
 // ── PATCH /api/cases/[id] ─────────────────────────────────────────────────────
-// 사례 수정 (부분 업데이트)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
@@ -89,7 +96,7 @@ export async function PATCH(
 
     const { data: existing } = await db
       .from("counseling_cases")
-      .select("id, academy_id")
+      .select("id, academy_id, created_by")
       .eq("id", id)
       .single()
 
@@ -97,7 +104,7 @@ export async function PATCH(
       return NextResponse.json({ error: "사례를 찾을 수 없습니다." }, { status: 404 })
     }
 
-    if (existing.academy_id !== null && existing.academy_id !== profile!.academyId) {
+    if (!canAccess(existing, profile!)) {
       return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 })
     }
 
@@ -143,13 +150,12 @@ export async function PATCH(
 }
 
 // ── DELETE /api/cases/[id] ────────────────────────────────────────────────────
-// 소프트 삭제 (is_active = false) 또는 완전 삭제 (admin 전용)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
@@ -161,7 +167,7 @@ export async function DELETE(
 
     const { data: existing } = await db
       .from("counseling_cases")
-      .select("id, academy_id, title")
+      .select("id, academy_id, created_by, title")
       .eq("id", id)
       .single()
 
@@ -169,7 +175,7 @@ export async function DELETE(
       return NextResponse.json({ error: "사례를 찾을 수 없습니다." }, { status: 404 })
     }
 
-    if (existing.academy_id !== null && existing.academy_id !== profile!.academyId) {
+    if (!canAccess(existing, profile!)) {
       return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 })
     }
 
@@ -185,7 +191,6 @@ export async function DELETE(
       return NextResponse.json({ success: true, deleted: true })
     }
 
-    // 소프트 삭제: is_active = false
     const { error } = await db
       .from("counseling_cases")
       .update({ is_active: false, updated_at: new Date().toISOString() })

@@ -83,11 +83,11 @@ function chunkText(text: string, maxSize = 2000): string[] {
   return chunks.filter(Boolean)
 }
 
-async function requireDirectorOrAdmin() {
+async function requireAuth() {
   if (isSupabaseConfigured()) {
     const profile = await getUserProfile()
-    if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
-      return { error: NextResponse.json({ error: "권한이 없습니다." }, { status: 403 }), profile: null }
+    if (!profile) {
+      return { error: NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 }), profile: null }
     }
     return { error: null, profile }
   }
@@ -99,18 +99,14 @@ async function requireDirectorOrAdmin() {
 // 경로 B: JSON { storagePath } (Supabase Storage 경유, 대용량)
 export async function POST(req: NextRequest) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
       return NextResponse.json({ error: "Supabase가 설정되지 않았습니다." }, { status: 503 })
     }
 
-    const academyId = profile!.academyId
-    // admin은 academy_id=null로 전역 매뉴얼 등록 허용
-    if (!academyId && profile!.role !== "admin") {
-      return NextResponse.json({ error: "학원 정보가 없습니다. 학원을 먼저 등록하거나 학원 코드로 합류해주세요." }, { status: 400 })
-    }
+    const academyId = profile!.academyId  // null이어도 OK (개인 RAG)
 
     const contentType = req.headers.get("content-type") ?? ""
     let buffer: Buffer

@@ -242,7 +242,8 @@ async function fetchSupabaseKnowledge(
   inputText: string,
   academyId: string | null,
   studentId: string | null = null,
-  plan: string = "free"
+  plan: string = "free",
+  userId: string | null = null
 ): Promise<{ context: string; chunksUsed: number; casesUsed: number; historyUsed: boolean; historyCount: number }> {
   const empty = { context: "", chunksUsed: 0, casesUsed: 0, historyUsed: false, historyCount: 0 }
   try {
@@ -272,6 +273,7 @@ async function fetchSupabaseKnowledge(
     const priorityOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
 
     // ── 3. knowledge_chunks 조회 (v3 신규 테이블) ─────────────────────────
+    // 자신의 학원 RAG + 자신이 만든 개인 RAG 모두 포함
     let chunks: Array<{ content: string; priority: string; subject: string; title?: string }> = []
     try {
       let cq = db
@@ -281,10 +283,19 @@ async function fetchSupabaseKnowledge(
         .limit(30)
 
       if (academyId) {
+        // 학원 소속: 학원 것 + 전역(null)
         cq = db
           .from("knowledge_chunks")
           .select("content, priority, subject, manual_sources!inner(title)")
           .or(`academy_id.eq.${academyId},academy_id.is.null`)
+          .order("priority", { ascending: false })
+          .limit(30)
+      } else if (userId) {
+        // 학원 없는 개인: 자신이 만든 청크만 (manual_sources.created_by 기준)
+        cq = db
+          .from("knowledge_chunks")
+          .select("content, priority, subject, manual_sources!inner(title)")
+          .eq("manual_sources.created_by", userId)
           .order("priority", { ascending: false })
           .limit(30)
       }
@@ -656,7 +667,7 @@ export async function POST(req: NextRequest) {
     // Step 4 — Retrieve RAG context v3 (academy-scoped + student history)
     let ragMeta = { context: "", chunksUsed: 0, casesUsed: 0, historyUsed: false, historyCount: 0 }
     if (isSupabaseConfigured()) {
-      ragMeta = await fetchSupabaseKnowledge(sanitizedText, academyId, studentId, userPlan)
+      ragMeta = await fetchSupabaseKnowledge(sanitizedText, academyId, studentId, userPlan, analyzedBy)
     }
     const ragContext = ragMeta.context || buildRagContext(sanitizedText)
 

@@ -5,10 +5,10 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/server"
 
-async function requireDirectorOrAdmin() {
+async function requireAuth() {
   const profile = await getUserProfile()
-  if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
-    return { error: NextResponse.json({ error: "권한이 없습니다." }, { status: 403 }), profile: null }
+  if (!profile) {
+    return { error: NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 }), profile: null }
   }
   return { error: null, profile }
 }
@@ -34,11 +34,10 @@ function normalize(row: any) {
 }
 
 // ── GET /api/cases ────────────────────────────────────────────────────────────
-// 모범 사례 목록 (학원별 + 공용)
-// Query: subject, priority, outcome_type, search
+// 모든 로그인 사용자: 자신이 만든 것 + 자신의 학원 것
 export async function GET(req: NextRequest) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
@@ -53,6 +52,7 @@ export async function GET(req: NextRequest) {
 
     const db = createSupabaseAdminClient()
     const academyId = profile!.academyId
+    const userId    = profile!.id
 
     let query = db
       .from("counseling_cases")
@@ -61,10 +61,11 @@ export async function GET(req: NextRequest) {
       .order("priority", { ascending: false })
       .order("created_at", { ascending: false })
 
+    // 자신이 만든 것 + 자신의 학원 것
     if (academyId) {
-      query = query.or(`academy_id.eq.${academyId},academy_id.is.null`)
+      query = query.or(`academy_id.eq.${academyId},created_by.eq.${userId}`)
     } else {
-      query = query.is("academy_id", null)
+      query = query.eq("created_by", userId)
     }
 
     if (subject)     query = query.eq("subject", subject)
@@ -86,21 +87,14 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST /api/cases ───────────────────────────────────────────────────────────
-// 모범 사례 등록
-// Body: { title, situation, response, outcome, priority, subject, tags, outcomeType, riskScore?, logId? }
+// 모든 로그인 사용자가 모범 사례 등록 가능
 export async function POST(req: NextRequest) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
       return NextResponse.json({ error: "Supabase가 설정되지 않았습니다." }, { status: 503 })
-    }
-
-    const academyId = profile!.academyId
-    // admin은 academy_id=null로 전역 사례 등록 허용
-    if (!academyId && profile!.role !== "admin") {
-      return NextResponse.json({ error: "학원 정보가 없습니다. 학원을 먼저 등록하거나 학원 코드로 합류해주세요." }, { status: 400 })
     }
 
     const body = await req.json()
@@ -121,6 +115,7 @@ export async function POST(req: NextRequest) {
       : (typeof tags === "string" ? tags : "").split(",").map((t: string) => t.trim()).filter(Boolean)
 
     const db = createSupabaseAdminClient()
+    const academyId = profile!.academyId  // null이어도 OK (개인 RAG)
 
     const { data, error } = await db
       .from("counseling_cases")

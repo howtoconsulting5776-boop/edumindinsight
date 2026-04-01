@@ -5,10 +5,10 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/server"
 
-async function requireDirectorOrAdmin() {
+async function requireAuth() {
   const profile = await getUserProfile()
-  if (!profile || (profile.role !== "admin" && profile.role !== "director")) {
-    return { error: NextResponse.json({ error: "권한이 없습니다." }, { status: 403 }), profile: null }
+  if (!profile) {
+    return { error: NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 }), profile: null }
   }
   return { error: null, profile }
 }
@@ -18,7 +18,7 @@ function normalize(row: any, contentPreview = "") {
   return {
     id:               row.id,
     title:            row.title,
-    content:          contentPreview,   // knowledge_chunks 첫 청크 미리보기
+    content:          contentPreview,
     priority:         row.priority,
     subject:          row.subject,
     tags:             row.tags ?? [],
@@ -35,11 +35,10 @@ function normalize(row: any, contentPreview = "") {
 }
 
 // ── GET /api/manuals ──────────────────────────────────────────────────────────
-// 매뉴얼 소스 목록 (학원별 + 공용)
-// Query: subject, priority, entry_type, search
+// 모든 로그인 사용자: 자신이 만든 것 + 자신의 학원 것
 export async function GET(req: NextRequest) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
@@ -54,6 +53,7 @@ export async function GET(req: NextRequest) {
 
     const db = createSupabaseAdminClient()
     const academyId = profile!.academyId
+    const userId    = profile!.id
 
     let query = db
       .from("manual_sources")
@@ -62,11 +62,11 @@ export async function GET(req: NextRequest) {
       .order("priority", { ascending: false })
       .order("created_at", { ascending: false })
 
-    // 학원 필터: 내 학원 항목 + 공용(academy_id IS NULL)
+    // 자신이 만든 것 + 자신의 학원 것 (학원 없으면 자신이 만든 것만)
     if (academyId) {
-      query = query.or(`academy_id.eq.${academyId},academy_id.is.null`)
+      query = query.or(`academy_id.eq.${academyId},created_by.eq.${userId}`)
     } else {
-      query = query.is("academy_id", null)
+      query = query.eq("created_by", userId)
     }
 
     if (subject)   query = query.eq("subject", subject)
@@ -104,21 +104,14 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST /api/manuals ─────────────────────────────────────────────────────────
-// 텍스트 직접 입력으로 매뉴얼 등록
-// Body: { title, content, priority, subject, tags }
+// 모든 로그인 사용자가 매뉴얼 등록 가능
 export async function POST(req: NextRequest) {
   try {
-    const { error: authError, profile } = await requireDirectorOrAdmin()
+    const { error: authError, profile } = await requireAuth()
     if (authError) return authError
 
     if (!isSupabaseConfigured()) {
       return NextResponse.json({ error: "Supabase가 설정되지 않았습니다." }, { status: 503 })
-    }
-
-    const academyId = profile!.academyId
-    // admin은 academy_id=null로 전역 매뉴얼 등록 허용
-    if (!academyId && profile!.role !== "admin") {
-      return NextResponse.json({ error: "학원 정보가 없습니다. 학원을 먼저 등록하거나 학원 코드로 합류해주세요." }, { status: 400 })
     }
 
     const body = await req.json()
@@ -136,6 +129,7 @@ export async function POST(req: NextRequest) {
       : (typeof tags === "string" ? tags : "").split(",").map((t: string) => t.trim()).filter(Boolean)
 
     const db = createSupabaseAdminClient()
+    const academyId = profile!.academyId  // null이어도 OK
 
     // 1. manual_sources 행 생성
     const { data: source, error: sourceError } = await db
@@ -160,7 +154,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: sourceError?.message ?? "저장 실패" }, { status: 500 })
     }
 
-    // 2. knowledge_chunks 행 생성 (텍스트는 청크 1개)
+    // 2. knowledge_chunks 행 생성
     const { error: chunkError } = await db
       .from("knowledge_chunks")
       .insert({
@@ -174,7 +168,6 @@ export async function POST(req: NextRequest) {
       })
 
     if (chunkError) {
-      // 청크 실패 시 소스도 롤백
       await db.from("manual_sources").delete().eq("id", source.id)
       console.error("[POST /api/manuals] chunk insert error:", chunkError)
       return NextResponse.json({ error: chunkError.message }, { status: 500 })
