@@ -156,9 +156,10 @@ export async function getUserProfile(): Promise<UserProfile | null> {
       let academy = (data as any).academies
       let resolvedAcademyId: string | null = data.academy_id ?? null
 
-      // director인데 academy_id가 null → owner인 학원을 자동으로 찾아 연결
+      // director인데 academy_id가 null → 자동으로 학원 찾아 연결 (2단계)
       const effectiveRole = isAdminByEmail ? "admin" : (data.role as UserRole)
       if (!resolvedAcademyId && effectiveRole === "director") {
+        // 1차: academies.owner_id로 찾기
         const { data: ownedAcademy } = await db
           .from("academies")
           .select("id, name, code")
@@ -167,8 +168,22 @@ export async function getUserProfile(): Promise<UserProfile | null> {
         if (ownedAcademy) {
           resolvedAcademyId = ownedAcademy.id
           academy = ownedAcademy
-          // profiles 테이블에도 자동 업데이트
           await db.from("profiles").update({ academy_id: ownedAcademy.id }).eq("id", user.id).catch(() => {})
+        } else {
+          // 2차: user_metadata.academy_id로 찾기 (가입 시 저장된 값)
+          const metaAcademyId = user.user_metadata?.academy_id as string | undefined
+          if (metaAcademyId) {
+            const { data: metaAcademy } = await db
+              .from("academies")
+              .select("id, name, code")
+              .eq("id", metaAcademyId)
+              .maybeSingle()
+            if (metaAcademy) {
+              resolvedAcademyId = metaAcademy.id
+              academy = metaAcademy
+              await db.from("profiles").update({ academy_id: metaAcademy.id }).eq("id", user.id).catch(() => {})
+            }
+          }
         }
       }
 
