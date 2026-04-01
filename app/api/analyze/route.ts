@@ -7,7 +7,7 @@ import {
   createSupabaseAdminClient,
   createSupabaseServerClient,
 } from "@/lib/supabase/server"
-import { getRemainingUsage } from "@/services/usageService"
+import { getRemainingUsage, getPlanLimit, getMonthlyUsageCountByUser } from "@/services/usageService"
 import type { Plan } from "@/services/usageService"
 import type { KnowledgeItem, PersonaSettings } from "@/lib/store"
 
@@ -498,7 +498,7 @@ async function saveCounselingLog(
       return parts.length > 0 ? parts.join(" / ") : null
     })()
 
-    await db.from("counseling_logs").insert({
+    const { error: insertError } = await db.from("counseling_logs").insert({
       original_text:  rawText,
       sanitized_text: sanitizedText,
       analysis_mode:  mode,
@@ -517,6 +517,21 @@ async function saveCounselingLog(
       chunks_used:    ragMeta.chunksUsed,
       cases_used:     ragMeta.casesUsed,
     })
+
+    if (insertError) {
+      console.error("[analyze] counseling_logs INSERT failed:", insertError.message)
+    }
+
+    // 학생 연결된 경우 — DB 트리거 미설정 환경 대비, 애플리케이션 레벨에서도 직접 갱신
+    if (!insertError && studentId && result.riskScore != null) {
+      await db
+        .from("students")
+        .update({
+          latest_risk_score:  result.riskScore,
+          last_contacted_at:  new Date().toISOString(),
+        })
+        .eq("id", studentId)
+    }
   } catch (err) {
     console.warn("[analyze] Counseling log save failed:", err)
   }
@@ -539,8 +554,8 @@ export async function POST(req: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        const adminBypassEmail = process.env.ADMIN_BYPASS_EMAIL
-        const userEmail = user.email ?? ""
+        const adminBypassEmail = (process.env.ADMIN_BYPASS_EMAIL ?? "").trim().toLowerCase()
+        const userEmail        = (user.email ?? "").trim().toLowerCase()
 
         if (!adminBypassEmail || userEmail !== adminBypassEmail) {
           const db = createSupabaseAdminClient()
@@ -550,27 +565,48 @@ export async function POST(req: NextRequest) {
             .eq("id", user.id)
             .single()
 
-          const plan = ((profile?.plan as Plan) ?? "free")
-          const academyId: string | null = profile?.academy_id ?? null
+          const plan      = ((profile?.plan as Plan) ?? "free")
+          const academyId = profile?.academy_id ?? null
 
-          if (plan !== "enterprise" && academyId) {
-            const { used, limit, remaining } = await getRemainingUsage(academyId, plan)
-            if (limit !== null && remaining !== null && remaining <= 0) {
-              return NextResponse.json(
-                {
-                  error: "USAGE_LIMIT_EXCEEDED",
-                  message: "이번 달 사용량을 모두 소진하셨습니다. Pro 플랜으로 업그레이드하세요.",
-                  used,
-                  limit,
-                },
-                { status: 403 }
-              )
+          if (plan !== "enterprise") {
+            if (academyId) {
+              // ── 정상 경로: academy 단위 한도 검사 ──────────────────────
+              const { used, limit, remaining } = await getRemainingUsage(academyId, plan)
+              if (limit !== null && remaining !== null && remaining <= 0) {
+                return NextResponse.json(
+                  {
+                    error:   "USAGE_LIMIT_EXCEEDED",
+                    message: "이번 달 사용량을 모두 소진하셨습니다. Pro 플랜으로 업그레이드하세요.",
+                    used,
+                    limit,
+                  },
+                  { status: 403 }
+                )
+              }
+            } else {
+              // ── 학원 미연결 계정: 유저 단위 한도 검사 (bypass 방지) ────
+              // 프로필/학원 설정이 완료되지 않은 계정은 free 플랜 한도를 그대로 적용
+              const limit = getPlanLimit(plan)
+              const used  = await getMonthlyUsageCountByUser(user.id)
+              if (limit !== null && used >= limit) {
+                return NextResponse.json(
+                  {
+                    error:   "USAGE_LIMIT_EXCEEDED",
+                    message: "이번 달 사용량을 모두 소진하셨습니다. 학원 설정을 완료하거나 Pro 플랜으로 업그레이드하세요.",
+                    used,
+                    limit,
+                  },
+                  { status: 403 }
+                )
+              }
             }
           }
         }
       }
     } catch (err) {
-      console.warn("[analyze] Usage guard check failed:", err)
+      // Usage guard 조회 실패 → fail-open (DB 장애 시 사용자를 차단하지 않음)
+      // 단, 로그를 error 레벨로 기록하여 모니터링에서 감지 가능하게 함
+      console.error("[analyze] Usage guard check failed — proceeding without limit check:", err)
     }
   }
   // ── End Usage Guard ──────────────────────────────────────────────────────
@@ -603,12 +639,16 @@ export async function POST(req: NextRequest) {
         const supabase = await createSupabaseServerClient()
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
-          academyId  = session.user.user_metadata?.academy_id ?? null
           analyzedBy = session.user.id
-          // plan은 이미 Usage Guard에서 조회했지만, RAG 이력 건수 제한용으로 다시 사용
+          // academy_id는 profiles 테이블이 authoritative — user_metadata보다 우선
           const db = createSupabaseAdminClient()
-          const { data: prof } = await db.from("profiles").select("plan").eq("id", session.user.id).single()
-          userPlan = prof?.plan ?? "free"
+          const { data: prof } = await db
+            .from("profiles")
+            .select("plan, academy_id")
+            .eq("id", session.user.id)
+            .single()
+          academyId = prof?.academy_id ?? session.user.user_metadata?.academy_id ?? null
+          userPlan  = prof?.plan ?? "free"
         }
       } catch { /* session 조회 실패 시 계속 진행 */ }
     }

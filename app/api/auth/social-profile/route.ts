@@ -134,24 +134,25 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 4. 프로필 upsert ─────────────────────────────────────────────────────
-  // 마이그레이션 전/후 모두 동작: 새 컬럼 포함 시도 → 실패 시 기본 컬럼으로 폴백
+  // plan: "free" 는 baseProfile에 항상 포함 — fallback 경로에서도 plan이 누락되지 않도록 보장
   const baseProfile = {
-    id: userId,
-    email: userEmail,
+    id:         userId,
+    email:      userEmail,
     role,
     academy_id: resolvedAcademyId,
+    plan:       "free" as const,   // 항상 free로 강제 — 업그레이드는 별도 결제 플로우에서만
   }
 
   try {
     const { error: fullError } = await db.from("profiles").upsert({
       ...baseProfile,
-      plan: "free",
       plan_started_at: new Date().toISOString(),
-      signup_method: signupMethod,
+      signup_method:   signupMethod,
     })
 
     if (fullError) {
       console.warn("[social-profile] full upsert failed, trying fallback:", fullError.message)
+      // fallback도 plan: "free" 포함 (baseProfile에 이미 포함됨)
       const { error: fallbackError } = await db.from("profiles").upsert(baseProfile)
       if (fallbackError) {
         console.error("[social-profile] fallback upsert error:", fallbackError.message)

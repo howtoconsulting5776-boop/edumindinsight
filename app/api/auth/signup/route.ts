@@ -137,11 +137,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 })
     }
 
-    // 경로 B에서는 클라이언트가 브라우저에서 직접 로그인하도록 유도
-    // (서버에서 세션 쿠키를 설정하면 브라우저에 제대로 전달되지 않음)
-    if (signupData?.user && !signupData.session) {
-      // 이메일 인증 필요
-      return NextResponse.json({ success: true, autoLogin: false, needsEmailVerification: true })
+    // 경로 B: signUp() 성공 시 profiles 수동 insert — DB 트리거가 없는 환경 대비
+    if (signupData?.user) {
+      const fallbackAdmin = createSupabaseAdminClient()
+      try {
+        await fallbackAdmin.from("profiles").upsert({
+          id:              signupData.user.id,
+          email,
+          role:            role ?? "teacher",
+          academy_id:      academy_id || null,
+          plan:            "free",       // 신규 가입은 항상 free
+          plan_started_at: new Date().toISOString(),
+          signup_method:   "email",
+        })
+      } catch (profileErr) {
+        console.warn("[signup] path-B profile upsert failed:", profileErr)
+      }
+
+      if (!signupData.session) {
+        // 이메일 인증 필요
+        return NextResponse.json({ success: true, autoLogin: false, needsEmailVerification: true })
+      }
     }
 
     return NextResponse.json({ success: true, autoLogin: false, role: role ?? "teacher" })
