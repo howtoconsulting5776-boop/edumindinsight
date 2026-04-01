@@ -14,10 +14,11 @@ async function requireDirectorOrAdmin() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalize(row: any) {
+function normalize(row: any, contentPreview = "") {
   return {
     id:               row.id,
     title:            row.title,
+    content:          contentPreview,   // knowledge_chunks 첫 청크 미리보기
     priority:         row.priority,
     subject:          row.subject,
     tags:             row.tags ?? [],
@@ -26,7 +27,7 @@ function normalize(row: any) {
     fileSizeBytes:    row.file_size_bytes ?? null,
     ocrUsed:          row.ocr_used ?? false,
     totalCharacters:  row.total_characters ?? 0,
-    totalChunks:      row.total_chunks ?? 1,
+    chunkCount:       row.total_chunks ?? 1,
     isActive:         row.is_active,
     createdAt:        row.created_at,
     updatedAt:        row.updated_at,
@@ -79,7 +80,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ manuals: (data ?? []).map(normalize) })
+    // knowledge_chunks에서 첫 번째 청크 내용 조회 (목록 미리보기용)
+    const sourceIds = (data ?? []).map((r) => r.id as string)
+    const contentMap: Record<string, string> = {}
+    if (sourceIds.length > 0) {
+      const { data: chunks } = await db
+        .from("knowledge_chunks")
+        .select("source_id, content")
+        .in("source_id", sourceIds)
+        .eq("chunk_index", 0)
+      for (const c of chunks ?? []) {
+        if (c.source_id) contentMap[c.source_id as string] = (c.content as string) ?? ""
+      }
+    }
+
+    return NextResponse.json({
+      manuals: (data ?? []).map((row) => normalize(row, contentMap[row.id as string] ?? "")),
+    })
   } catch (err) {
     console.error("[GET /api/manuals]", err)
     return NextResponse.json({ error: "서버 오류가 발생했습니다." }, { status: 500 })
@@ -99,7 +116,8 @@ export async function POST(req: NextRequest) {
     }
 
     const academyId = profile!.academyId
-    if (!academyId) {
+    // admin은 academy_id=null로 전역 매뉴얼 등록 허용
+    if (!academyId && profile!.role !== "admin") {
       return NextResponse.json({ error: "학원 정보가 없습니다." }, { status: 400 })
     }
 

@@ -128,8 +128,9 @@ export default function ManualsPage() {
       }
       const data = await res.json()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setItems((data.items as any[]).map((i) => ({
-        id: i.id, title: i.title, content: i.content, priority: i.priority,
+      const list = (data.manuals ?? data.items ?? []) as any[]
+      setItems(list.map((i) => ({
+        id: i.id, title: i.title, content: i.content ?? "", priority: i.priority,
         tags: i.tags ?? [], subject: i.subject, entryType: i.entryType,
         createdAt: i.createdAt, chunkCount: i.chunkCount,
       })))
@@ -299,7 +300,7 @@ export default function ManualsPage() {
             className="rounded-2xl shadow-sm flex items-center gap-2 border-[#3E2D9B] text-[#3E2D9B] hover:bg-purple-50"
           >
             <HIcon icon={Upload01Icon} size={16} primary="#3E2D9B" secondary="#C4BEF0" />
-            <span className="hidden sm:inline">파일 업로드</span>
+            파일 업로드
           </Button>
           <Button
             onClick={() => { setShowForm(!showForm); setShowFileUpload(false) }}
@@ -307,7 +308,7 @@ export default function ManualsPage() {
             style={{ background: "#3E2D9B" }}
           >
             <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
-            <span className="hidden sm:inline">매뉴얼 추가</span>
+            매뉴얼 추가
           </Button>
         </div>
       </div>

@@ -107,7 +107,8 @@ export async function POST(req: NextRequest) {
     }
 
     const academyId = profile!.academyId
-    if (!academyId) {
+    // admin은 academy_id=null로 전역 매뉴얼 등록 허용
+    if (!academyId && profile!.role !== "admin") {
       return NextResponse.json({ error: "학원 정보가 없습니다." }, { status: 400 })
     }
 
