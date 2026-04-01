@@ -17,7 +17,7 @@ import {
   createSupabaseAdminClient,
   createSupabaseServerClient,
 } from "@/lib/supabase/server"
-import { getRemainingUsage, getPlanLimit } from "@/services/usageService"
+import { getRemainingUsage, getPlanLimit, getMonthlyUsageCountByUser } from "@/services/usageService"
 import type { Plan, SignupMethod } from "@/services/usageService"
 
 export async function GET() {
@@ -72,13 +72,16 @@ export async function GET() {
     }
 
     if (!academyId) {
-      // 학원 미연결 계정도 plan 기반 한도를 그대로 표시 (null = 무제한 표시 버그 방지)
+      // 학원 미연결 계정: 유저 단위로 실제 사용량 조회 (0 하드코딩 시 차감 안 되는 버그 방지)
       const limit = getPlanLimit(plan)
+      const used  = await getMonthlyUsageCountByUser(user.id)
+      const remaining = limit !== null ? Math.max(limit - used, 0) : null
+      const percent   = limit !== null ? Math.min(Math.round((used / limit) * 100), 100) : 0
       return NextResponse.json({
-        used: 0,
+        used,
         limit,
-        remaining: limit,
-        percent: 0,
+        remaining,
+        percent,
         plan,
         signup_method: signupMethod,
       })
