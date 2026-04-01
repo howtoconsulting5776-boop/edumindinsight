@@ -98,8 +98,9 @@ export async function POST(req: NextRequest) {
     }
 
     const academyId = profile!.academyId
-    if (!academyId) {
-      return NextResponse.json({ error: "학원 정보가 없습니다." }, { status: 400 })
+    // admin은 academy_id=null로 전역 사례 등록 허용
+    if (!academyId && profile!.role !== "admin") {
+      return NextResponse.json({ error: "학원 정보가 없습니다. 학원을 먼저 등록하거나 학원 코드로 합류해주세요." }, { status: 400 })
     }
 
     const body = await req.json()
