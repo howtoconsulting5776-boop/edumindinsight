@@ -168,7 +168,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
         if (ownedAcademy) {
           resolvedAcademyId = ownedAcademy.id
           academy = ownedAcademy
-          await db.from("profiles").update({ academy_id: ownedAcademy.id }).eq("id", user.id).catch(() => {})
+          try { await db.from("profiles").update({ academy_id: ownedAcademy.id }).eq("id", user.id) } catch { /* 자동 수정 실패 무시 */ }
         } else {
           // 2차: user_metadata.academy_id로 찾기 (가입 시 저장된 값)
           const metaAcademyId = user.user_metadata?.academy_id as string | undefined
@@ -181,7 +181,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
             if (metaAcademy) {
               resolvedAcademyId = metaAcademy.id
               academy = metaAcademy
-              await db.from("profiles").update({ academy_id: metaAcademy.id }).eq("id", user.id).catch(() => {})
+              try { await db.from("profiles").update({ academy_id: metaAcademy.id }).eq("id", user.id) } catch { /* 자동 수정 실패 무시 */ }
             }
           }
         }
