@@ -122,8 +122,8 @@ export async function getSupabaseUser() {
 export async function isAdminUser(): Promise<boolean> {
   const user = await getSupabaseUser()
   if (!user) return false
-  const adminEmail = process.env.ADMIN_EMAIL ?? ""
-  return user.email === adminEmail
+  const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase()
+  return (user.email ?? "").trim().toLowerCase() === adminEmail && adminEmail !== ""
 }
 
 // ── Helper: get full user profile (DB + fallback to user_metadata) ────────
@@ -131,7 +131,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   const user = await getSupabaseUser()
   if (!user) return null
 
-  const adminEmail = process.env.ADMIN_EMAIL ?? ""
+  const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase()
+  const userEmailNorm = (user.email ?? "").trim().toLowerCase()
+  const isAdminByEmail = adminEmail !== "" && userEmailNorm === adminEmail
 
   // displayName: profiles에는 저장하지 않고 user_metadata에서 읽음
   const displayName =
@@ -152,18 +154,17 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     if (data) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const academy = (data as any).academies
-      const isAdmin = user.email === adminEmail
       return {
         id: user.id,
         email: user.email!,
         // admin 이메일이면 role을 항상 'admin'으로 강제 (DB 값 무관)
-        role: isAdmin ? "admin" : (data.role as UserRole),
+        role: isAdminByEmail ? "admin" : (data.role as UserRole),
         academyId: data.academy_id ?? null,
         academyName: academy?.name ?? null,
         academyCode: academy?.code ?? null,
         displayName,
         // admin 이메일이면 plan을 항상 'enterprise'로 강제
-        plan: isAdmin ? ("enterprise" as Plan) : ((data.plan as Plan) ?? "free"),
+        plan: isAdminByEmail ? ("enterprise" as Plan) : ((data.plan as Plan) ?? "free"),
         planStartedAt: data.plan_started_at ?? null,
         planExpiresAt: data.plan_expires_at ?? null,
         signupMethod: (data.signup_method as SignupMethod) ?? "email",
@@ -174,7 +175,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   }
 
   // DB에 profiles 행이 없는 경우: admin 이메일이면 기본값 반환
-  if (user.email === adminEmail) {
+  if (isAdminByEmail) {
     return {
       id: user.id,
       email: user.email!,

@@ -58,8 +58,8 @@ async function supabaseProxy(request: NextRequest, pathname: string) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  const userEmail    = session?.user?.email ?? null
-  const adminEmail   = process.env.ADMIN_EMAIL ?? ""
+  const userEmail    = (session?.user?.email ?? "").trim().toLowerCase()
+  const adminEmail   = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase()
   const isLoggedIn   = !!session
 
   // Role is embedded in user_metadata at signup — no DB round-trip needed.

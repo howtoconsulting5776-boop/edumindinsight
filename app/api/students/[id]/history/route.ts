@@ -65,7 +65,9 @@ export async function GET(
       return NextResponse.json({ error: "담당 학생의 이력만 조회할 수 있습니다." }, { status: 403 })
     }
 
-    // 상담 이력 조회
+    // 상담 이력 조회 (profiles 조인 제거 — analyzed_by는 auth.users FK라 PostgREST 직접 조인 불가)
+    // academy_id 필터: 학생 소속은 이미 위에서 확인했으므로 student_id가 primary key.
+    // 이전에 academy_id = null 로 저장된 로그도 포함하기 위해 OR 조건 사용.
     let logsQuery = db
       .from("counseling_logs")
       .select(`
@@ -76,16 +78,15 @@ export async function GET(
         positive_score,
         negative_score,
         keywords,
-        subject,
+        original_text,
         history_summary,
         history_used,
         history_count,
         analyzed_by,
-        created_at,
-        profiles!analyzed_by ( email )
+        created_at
       `, { count: "exact" })
       .eq("student_id", studentId)
-      .eq("academy_id", academyId)
+      .or(`academy_id.eq.${academyId},academy_id.is.null`)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -110,7 +111,7 @@ export async function GET(
       .from("counseling_logs")
       .select("contact_type, risk_score")
       .eq("student_id", studentId)
-      .eq("academy_id", academyId)
+      .or(`academy_id.eq.${academyId},academy_id.is.null`)
 
     const contactStats: Record<string, number> = {}
     let avgRisk = 0
@@ -145,13 +146,11 @@ export async function GET(
         positiveScore:  log.positive_score ?? null,
         negativeScore:  log.negative_score ?? null,
         keywords:       log.keywords ?? [],
-        subject:        log.subject,
+        originalText:   log.original_text ?? null,
         historySummary: log.history_summary ?? null,
         historyUsed:    log.history_used,
         historyCount:   log.history_count,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        analyzedByEmail: (log as any).profiles?.email ?? null,
-        createdAt:       log.created_at,
+        createdAt:      log.created_at,
       })),
       pagination: {
         total:  count ?? 0,

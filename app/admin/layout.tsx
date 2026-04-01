@@ -23,7 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen" style={{ background: "#F0EFFB" }}>
       <AdminSidebar role={role} academyName={academyName} fullName={displayName} />
-      <main className="flex-1 md:ml-64 p-6 md:p-10 overflow-y-auto min-h-screen">
+      <main className="flex-1 md:ml-64 px-4 pb-10 pt-20 md:px-10 md:pb-10 md:pt-10 overflow-y-auto min-h-screen">
         {children}
       </main>
     </div>

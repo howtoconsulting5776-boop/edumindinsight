@@ -200,7 +200,7 @@ export default function CasesPage() {
           style={{ background: "#3E2D9B" }}
         >
           <HIcon icon={PlusSignIcon} size={16} primary="white" secondary="rgba(255,255,255,0.5)" />
-          <span className="hidden sm:inline">사례 추가</span>
+          사례 추가
         </Button>
       </div>
 

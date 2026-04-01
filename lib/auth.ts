@@ -16,10 +16,13 @@ export function validateCredentials(
   username: string,
   password: string
 ): UserRole | null {
-  const adminUser = process.env.ADMIN_USERNAME ?? "admin"
-  const adminPass = process.env.ADMIN_PASSWORD ?? "edumind2024"
-  const normalUser = process.env.USER_USERNAME ?? "teacher"
-  const normalPass = process.env.USER_PASSWORD ?? "howto2024"
+  // 환경변수 미설정 시 legacy 로그인 불가 (보안: 기본값 없음)
+  const adminUser = process.env.ADMIN_USERNAME
+  const adminPass = process.env.ADMIN_PASSWORD
+  const normalUser = process.env.USER_USERNAME
+  const normalPass = process.env.USER_PASSWORD
+
+  if (!adminUser || !adminPass || !normalUser || !normalPass) return null
 
   if (username === adminUser && password === adminPass) return "admin"
   if (username === normalUser && password === normalPass) return "user"
