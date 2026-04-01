@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -51,6 +51,34 @@ interface StudentOption {
   name: string
   grade?: string
   status: string
+}
+
+interface HistoryLog {
+  id: string
+  contactType: string
+  riskScore: number | null
+  positiveScore: number | null
+  negativeScore: number | null
+  keywords: string[]
+  historySummary: string | null
+  createdAt: string
+}
+
+interface StudentHistoryData {
+  student: {
+    id: string
+    name: string
+    grade: string | null
+    latestRiskScore: number
+    lastContactedAt: string | null
+  }
+  logs: HistoryLog[]
+  stats: { totalSessions: number; avgRiskScore: number; maxRiskScore: number }
+}
+
+const CONTACT_LABEL: Record<string, string> = {
+  student: "학생", father: "아버지", mother: "어머니",
+  guardian: "보호자", other: "기타",
 }
 
 // ── Hugeicons wrapper — duotone brand colors ────────────────────────────────
@@ -276,6 +304,10 @@ export default function Home() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>("none")
   const [contactType, setContactType] = useState<string>("student")
 
+  // 학생 이력
+  const [studentHistoryData, setStudentHistoryData] = useState<StudentHistoryData | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+
   useEffect(() => {
     if (!isAnalyzing) return
     setStatusStep(0)
@@ -298,6 +330,23 @@ export default function Home() {
   useEffect(() => {
     if (result) setTimeout(() => rightPanelRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100)
   }, [result])
+
+  // 학생 선택 시 이력 fetch
+  useEffect(() => {
+    if (selectedStudentId === "none") {
+      setStudentHistoryData(null)
+      return
+    }
+    setHistoryLoading(true)
+    fetch(`/api/students/${selectedStudentId}/history?limit=10`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && !data.error) setStudentHistoryData(data as StudentHistoryData)
+        else setStudentHistoryData(null)
+      })
+      .catch(() => setStudentHistoryData(null))
+      .finally(() => setHistoryLoading(false))
+  }, [selectedStudentId])
 
   useEffect(() => {
     fetch("/api/usage")
@@ -599,8 +648,129 @@ export default function Home() {
           </Alert>
         )}
 
-        {/* Empty state */}
-        {!result && !isAnalyzing && !error && (
+        {/* 학생 선택됨 → 이력 화면 (분석 전) */}
+        {!result && selectedStudentId !== "none" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+            {/* 학생 정보 헤더 */}
+            {historyLoading ? (
+              <div className="rounded-xl bg-white p-5 shadow-xl shadow-slate-200/60 animate-pulse">
+                <div className="h-5 w-32 rounded bg-slate-200 mb-3" />
+                <div className="h-4 w-48 rounded bg-slate-100" />
+              </div>
+            ) : studentHistoryData ? (
+              <div className="rounded-xl bg-white p-5 shadow-xl shadow-slate-200/60">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-lg font-extrabold text-slate-800">{studentHistoryData.student.name}</h2>
+                      {studentHistoryData.student.grade && (
+                        <span className="text-xs text-slate-400">{studentHistoryData.student.grade}</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      총 {studentHistoryData.stats.totalSessions}회 상담 ·{" "}
+                      평균 위험도 <span className="font-bold text-slate-600">{studentHistoryData.stats.avgRiskScore}점</span>
+                      {studentHistoryData.student.lastContactedAt && (
+                        <> · 마지막 상담 {new Date(studentHistoryData.student.lastContactedAt).toLocaleDateString("ko-KR")}</>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs font-bold px-3 py-1.5 rounded-full"
+                      style={{
+                        background: studentHistoryData.student.latestRiskScore >= 70 ? "#FEE2E2"
+                          : studentHistoryData.student.latestRiskScore >= 40 ? "#FEF3C7" : "#D1FAE5",
+                        color: studentHistoryData.student.latestRiskScore >= 70 ? "#DC2626"
+                          : studentHistoryData.student.latestRiskScore >= 40 ? "#D97706" : "#059669",
+                      }}
+                    >
+                      위험도 {studentHistoryData.student.latestRiskScore}점
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-white p-5 shadow-xl shadow-slate-200/60 text-sm text-slate-400 text-center py-6">
+                학생 정보를 불러올 수 없습니다.
+              </div>
+            )}
+
+            {/* 추세 차트 */}
+            <SectionCard icon={Analytics01Icon} title="상담 추세">
+              <ScoreLineChart
+                studentId={selectedStudentId}
+                refreshToken={chartRefreshToken}
+              />
+            </SectionCard>
+
+            {/* 이전 상담 기록 */}
+            {studentHistoryData && studentHistoryData.logs.length > 0 && (
+              <SectionCard icon={FileEditIcon} title="최근 상담 기록">
+                <div className="space-y-3">
+                  {studentHistoryData.logs.map((log) => (
+                    <div key={log.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-slate-500">
+                            {new Date(log.createdAt).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            ({CONTACT_LABEL[log.contactType] ?? log.contactType})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {log.riskScore !== null && (
+                            <span
+                              className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                              style={{
+                                background: log.riskScore >= 70 ? "#FEE2E2" : log.riskScore >= 40 ? "#FEF3C7" : "#D1FAE5",
+                                color: log.riskScore >= 70 ? "#DC2626" : log.riskScore >= 40 ? "#D97706" : "#059669",
+                              }}
+                            >
+                              위험도 {log.riskScore}
+                            </span>
+                          )}
+                          {log.positiveScore !== null && (
+                            <span className="text-[11px] text-emerald-600 font-medium">긍정 {log.positiveScore}</span>
+                          )}
+                        </div>
+                      </div>
+                      {log.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {log.keywords.slice(0, 5).map((kw) => (
+                            <span key={kw} className="text-[10px] bg-[#EEF0FF] text-[#3E2D9B] px-2 py-0.5 rounded-full font-medium">
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {log.historySummary && (
+                        <p className="text-xs text-slate-500 leading-relaxed">{log.historySummary}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* 분석 유도 메시지 */}
+            <div className="rounded-xl border-2 border-dashed border-[#C4BEF0] p-8 text-center">
+              <div className="mb-3 flex justify-center">
+                <div className="rounded-full p-4" style={{ backgroundColor: "#E8E5FF" }}>
+                  <HIcon icon={AiBrain01Icon} size={32} primary="#3E2D9B" secondary="#C4BEF0" />
+                </div>
+              </div>
+              <p className="text-sm font-bold text-slate-600">왼쪽에 상담 내용을 입력하고</p>
+              <p className="mt-1 text-xs text-slate-400">분석 버튼을 누르면 이 화면이 결과로 바뀝니다</p>
+            </div>
+
+          </div>
+        )}
+
+        {/* Empty state — 학생 미선택 */}
+        {!result && selectedStudentId === "none" && !isAnalyzing && !error && (
           <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#C4BEF0] p-10 text-center md:min-h-[calc(100vh-80px)]">
             <div className="mb-4 rounded-full p-5" style={{ backgroundColor: "#E8E5FF" }}>
               <HIcon icon={AiBrain01Icon} size={40} primary="#3E2D9B" secondary="#C4BEF0" />
