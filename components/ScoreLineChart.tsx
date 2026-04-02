@@ -39,9 +39,9 @@ interface TooltipProps {
 }
 
 const LINES = [
-  { key: "riskScore",     label: "이탈 위험도", color: "#EF4444" },
-  { key: "positiveScore", label: "긍정 수치",   color: "#10B981" },
-  { key: "negativeScore", label: "부정 수치",   color: "#F59E0B" },
+  { key: "positiveScore", label: "긍정 수치",   color: "#10B981", strokeWidth: 1,   dotR: 2 },
+  { key: "negativeScore", label: "부정 수치",   color: "#F59E0B", strokeWidth: 1,   dotR: 2 },
+  { key: "riskScore",     label: "이탈 위험도", color: "#EF4444", strokeWidth: 2.5, dotR: 4 },
 ] as const
 
 function CustomTooltip({ active, payload, label }: TooltipProps) {
@@ -141,16 +141,16 @@ export function ScoreLineChart({ studentId, refreshToken }: Props) {
             <Legend
               wrapperStyle={{ display: "none" }}
             />
-            {LINES.map(({ key, label, color }) => (
+            {LINES.map(({ key, label, color, strokeWidth, dotR }) => (
               <Line
                 key={key}
                 type="monotone"
                 dataKey={key}
                 name={label}
                 stroke={color}
-                strokeWidth={2}
-                dot={{ r: 4, fill: color, strokeWidth: 0 }}
-                activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }}
+                strokeWidth={strokeWidth}
+                dot={{ r: dotR, fill: color, strokeWidth: 0 }}
+                activeDot={{ r: dotR + 2, strokeWidth: 2, stroke: "#fff" }}
               />
             ))}
           </LineChart>
