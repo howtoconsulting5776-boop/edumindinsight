@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Figtree } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import Script from "next/script";
 
 const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
 
@@ -77,6 +78,19 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", figtree.variable)}
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {/* Google Analytics GA4 — afterInteractive: 하이드레이션 완료 후 로드 */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-S81FBXK5MX"
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-S81FBXK5MX');
+          `}
+        </Script>
         {children}
         <Toaster position="top-center" richColors />
       </body>
