@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState } from "react"
 import {
@@ -81,7 +81,7 @@ export function ScoreLineChart({ studentId, refreshToken }: Props) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    const params = new URLSearchParams({ limit: "20" })
+    const params = new URLSearchParams({ limit: "7" })
     if (studentId && studentId !== "none") params.set("studentId", studentId)
 
     fetch(`/api/stats/scores?${params}`)
