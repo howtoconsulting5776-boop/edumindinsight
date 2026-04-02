@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       .select("created_at, risk_score, positive_score, negative_score")
       .eq("academy_id", academyId)
       .not("risk_score", "is", null)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(limit)
 
     if (studentId && studentId !== "none") {
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const points = (data ?? []).map((row) => ({
+    const points = (data ?? []).reverse().map((row) => ({
       date:          new Date(row.created_at).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" }),
       riskScore:     row.risk_score    ?? 0,
       positiveScore: row.positive_score ?? 0,
